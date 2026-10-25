@@ -1,0 +1,123 @@
+#!/usr/bin/env bash
+# Pre-commit checks on the staged content of each commit, not the working tree:
+#   - scripts/check-secrets.sh: secrets, force-added ignored files, personal details
+#   - bash -n and shellcheck (when installed) on staged Bash files: the repository
+#     tooling, which runs on Linux and macOS
+#   - scripts/check-powershell.sh on staged PowerShell files: syntax (when pwsh is
+#     installed) and ASCII
+# Every check runs, and the commit is blocked if any of them fails. CI always
+# runs ShellCheck and PowerShell's parser.
+# Enable once per clone:  git config core.hooksPath .githooks
+# Skip for one reviewed commit with `git commit --no-verify`; CI still checks it.
+set -euo pipefail
+# CDPATH can redirect cd to another directory and make it print the path.
+unset CDPATH
+
+# Global variables
+readonly SHEBANG='^#!.*[/[:space:]](ba)?sh([[:space:]]|$)'
+FAILED=()
+STAGED_DIR=''
+TMP_DIR=''
+
+# cleanup removes the temporary directory if it exists.
+cleanup() {
+    if [[ -n $TMP_DIR && -d $TMP_DIR ]]; then
+        rm -rf -- "$TMP_DIR"
+    fi
+}
+
+# staged_files KIND prints, NUL-separated, the staged paths of one kind: "bash"
+# for *.sh and *.bash files and files whose staged first line is a sh or bash
+# shebang, "powershell" for *.ps1, *.psm1, and *.psd1 files.
+staged_files() {
+    local kind=$1 path first
+    while IFS= read -r -d '' path; do
+        case $kind:$path in
+            powershell:*.ps1 | powershell:*.psm1 | powershell:*.psd1 | bash:*.sh | bash:*.bash)
+                printf '%s\0' "$path"
+                continue
+                ;;
+            powershell:*) continue ;;
+        esac
+        first=''
+        IFS= read -r first < <(git show ":$path" 2>/dev/null) || true
+        if [[ $first =~ $SHEBANG ]]; then
+            printf '%s\0' "$path"
+        fi
+    done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+}
+
+# check_secrets runs the secret scan on the staged content.
+check_secrets() {
+    bash scripts/check-secrets.sh --staged || FAILED+=('secret scan')
+}
+
+# check_bash runs `bash -n`, then shellcheck when it is installed, on each staged
+# Bash file PATH..., from the staged copy so messages name repository paths.
+check_bash() {
+    local path status=0
+    for path in "$@"; do
+        (cd -- "$STAGED_DIR" && bash -n -- "$path") || status=1
+    done
+    [[ $status -eq 0 ]] || FAILED+=('bash -n')
+    if ! command -v shellcheck >/dev/null; then
+        printf 'pre-commit: shellcheck is not installed, so it was skipped; CI runs it\n' >&2
+        return 0
+    fi
+    (cd -- "$STAGED_DIR" && shellcheck -- "$@") || FAILED+=('shellcheck')
+}
+
+# check_powershell runs scripts/check-powershell.sh on each staged PowerShell
+# file PATH..., from the staged copy. Without pwsh only the syntax is skipped.
+check_powershell() {
+    local checker status=0
+    checker="$PWD/scripts/check-powershell.sh"
+    (cd -- "$STAGED_DIR" && bash "$checker" "$@") || status=$?
+    case $status in
+        0) ;;
+        3) printf 'pre-commit: pwsh is not installed, so PowerShell syntax was skipped; CI checks it\n' >&2 ;;
+        *) FAILED+=('PowerShell') ;;
+    esac
+}
+
+# stage PATH... copies the staged content of each PATH into STAGED_DIR.
+stage() {
+    # checkout-index writes the staged version, which may differ from the
+    # working tree when only part of a file is staged.
+    printf '%s\0' "$@" | git checkout-index -z --stdin --prefix="$STAGED_DIR/"
+}
+
+# main finds the staged files, copies their staged content aside, and runs every
+# check, failing if any of them failed.
+main() {
+    local path failed
+    local -a bash_files=() powershell_files=()
+    cd -- "$(git rev-parse --show-toplevel)"
+    trap cleanup EXIT
+    TMP_DIR=$(mktemp -d)
+    STAGED_DIR="$TMP_DIR/staged"
+    while IFS= read -r -d '' path; do
+        bash_files+=("$path")
+    done < <(staged_files bash)
+    while IFS= read -r -d '' path; do
+        powershell_files+=("$path")
+    done < <(staged_files powershell)
+
+    check_secrets
+    if [[ ${#bash_files[@]} -gt 0 ]]; then
+        stage "${bash_files[@]}"
+        check_bash "${bash_files[@]}"
+    fi
+    if [[ ${#powershell_files[@]} -gt 0 ]]; then
+        stage "${powershell_files[@]}"
+        check_powershell "${powershell_files[@]}"
+    fi
+
+    if [[ ${#FAILED[@]} -gt 0 ]]; then
+        printf -v failed '%s, ' "${FAILED[@]}"
+        printf 'pre-commit: commit blocked; failed: %s\n' "${failed%, }" >&2
+        exit 1
+    fi
+}
+# Execute the main function with all command-line arguments.
+main "$@"

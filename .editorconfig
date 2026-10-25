@@ -1,0 +1,45 @@
+# EditorConfig keeps every editor on this repository's conventions.
+# https://editorconfig.org
+# VS Code needs the EditorConfig extension; most other editors read this file
+# natively. AGENTS.md describes the conventions themselves.
+#
+# Each section is a glob. A glob without a slash matches a file name at any
+# depth; a glob with one is relative to this directory. When several sections
+# match a file, later ones win: general rules come first and exceptions after.
+
+# Stop the search here, so no .editorconfig in a parent directory applies.
+root = true
+
+# Every file: UTF-8, LF line endings (.gitattributes enforces them too), a final
+# newline, no trailing whitespace, and four-space indentation.
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+# PowerShell: four spaces, as in the PowerShell style guide. Files must also be
+# ASCII (see AGENTS.md), which EditorConfig cannot express.
+[*.{ps1,psm1,psd1}]
+indent_size = 4
+
+# Bash: the repository tooling and the Git hook.
+[{**.sh,.githooks/*}]
+indent_size = 4
+
+# JSON and YAML (the manifest, the GitHub workflow, Dependabot): two spaces.
+[*.{json,yml,yaml}]
+indent_size = 2
+
+# The Oh My Posh themes keep the upstream files' formatting (see the README's
+# credits), so they stay easy to compare with the originals.
+[home/.config/oh-my-posh/themes/*.omp.json]
+trim_trailing_whitespace = unset
+insert_final_newline = unset
+
+# Markdown: two trailing spaces are a hard line break. Prose wraps at 80 columns.
+[*.md]
+trim_trailing_whitespace = false
+indent_size = unset

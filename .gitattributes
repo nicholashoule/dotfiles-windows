@@ -1,0 +1,17 @@
+# Line endings: LF everywhere, including on Windows checkouts. PowerShell, Git for
+# Windows, and Windows Terminal all read LF, and one ending everywhere keeps the
+# files identical to the ones shared with dotfiles-linux and dotfiles-macos.
+# https://git-scm.com/docs/gitattributes
+* text=auto eol=lf
+
+*.ps1     text eol=lf
+*.psm1    text eol=lf
+*.psd1    text eol=lf
+*.sh      text eol=lf
+*.md      text eol=lf diff=markdown
+*.json    text eol=lf
+*.yml     text eol=lf
+*.yaml    text eol=lf
+LICENSE   text eol=lf
+.gitattributes text eol=lf
+.gitignore     text eol=lf

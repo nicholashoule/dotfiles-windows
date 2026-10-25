@@ -1,0 +1,18 @@
+{
+  "platforms": ["windows"],
+  "setup": [
+    {
+      "name": "oh-my-posh",
+      "run": [
+        "winget", "install", "--id", "JanDeDobbeleer.OhMyPosh", "--exact", "--source", "winget",
+        "--accept-source-agreements", "--accept-package-agreements"
+      ],
+      "provides": "oh-my-posh"
+    },
+    {
+      "name": "meslo-nerd-font",
+      "run": ["oh-my-posh", "font", "install", "Meslo"],
+      "creates": "AppData/Local/Microsoft/Windows/Fonts/MesloLGLNerdFont-Regular.ttf"
+    }
+  ]
+}
