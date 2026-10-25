@@ -99,6 +99,19 @@ every file under `home/` into a temporary home, checks and unlinks them, and
 lists the setup steps without running any. GitHub Actions runs the checks on
 Ubuntu on every push and pull request.
 
+[.pre-commit-config.yaml](.pre-commit-config.yaml) adds optional checks for
+[pre-commit](https://pre-commit.com), such as YAML and JSON syntax, whitespace,
+executable bits, and private keys, plus ShellCheck on the Bash tooling. They
+complement `.githooks/pre-commit` and do not replace it. Because
+`core.hooksPath` is set, `pre-commit install` refuses to install, so run them on
+demand; the ShellCheck hook uses ShellCheck's Docker image, so without Docker,
+skip it with `SKIP=shellcheck`:
+
+```sh
+pre-commit run --all-files  # every check on every tracked file
+pre-commit autoupdate       # refresh the pinned hook versions
+```
+
 ## Contributing
 
 [AGENTS.md](AGENTS.md) lists the conventions for changes and the checks to run
