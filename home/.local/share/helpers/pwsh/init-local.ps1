@@ -1,10 +1,10 @@
-# Create the starter ~\.config\powershell\profile.d\local.ps1, for this machine's
+# Create the starter $HOME\.config\powershell\profile.d\local.ps1, for this machine's
 # own settings.
 # Author: Nicholas Houle (https://github.com/nicholashoule)
 #
 # Usage: init-local.ps1 [-DryRun] [-Force]
 #
-# profile.ps1 dot-sources every *.ps1 file in ~\.config\powershell\profile.d,
+# profile.ps1 dot-sources every *.ps1 file in $HOME\.config\powershell\profile.d,
 # and local.ps1 is the one there for settings that belong to this machine only,
 # so it is created here instead of linked from the public dotfiles repository.
 # The starter holds only comments: examples of the overrides the dotfiles
@@ -44,12 +44,13 @@ function Get-Starter {
 # public repository. Uncomment what you need.
 #
 # profile.ps1 dot-sources it with the other files in
-# ~\.config\powershell\profile.d, in alphabetical order. A file that sorts after
+# $HOME\.config\powershell\profile.d, in alphabetical order. A file that sorts after
 # it, such as oh-my-posh.ps1, reads its settings while loading; one that sorts
 # before it, such as 00-psreadline.ps1, has already run, so a setting here
-# replaces that file's. Credentials belong in each tool's own files, not here.
+# replaces that file's. Credentials belong in each tool's own files, not here;
+# for GITHUB_TOKEN, run Set-GitHubToken.
 
-# Prompt theme: the name of a theme in ~\.config\oh-my-posh\themes, without
+# Prompt theme: the name of a theme in $HOME\.config\oh-my-posh\themes, without
 # .omp.json, or a path to any theme file.
 # $env:OHMYPOSH_THEME = 'bubbles'
 

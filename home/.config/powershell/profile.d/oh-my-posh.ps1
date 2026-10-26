@@ -23,3 +23,9 @@ if ((Get-Module PSReadLine) -and (Get-Command oh-my-posh -ErrorAction SilentlyCo
     }
     Remove-Variable ohMyPoshTheme, ohMyPoshInit -ErrorAction SilentlyContinue
 }
+
+# Update-OhMyPosh (update-omp) upgrades Oh My Posh with winget, in every session.
+# Open a new terminal afterward to load the new version's prompt.
+# https://ohmyposh.dev/docs/installation/windows
+function Update-OhMyPosh { Update-WingetPackage JanDeDobbeleer.OhMyPosh }
+Set-Alias update-omp Update-OhMyPosh

@@ -52,6 +52,10 @@ to change it without breaking its guarantees.
   behind.
 - `aliases.ps1` holds short Unix-style and Git commands and `functions.ps1`
   general-purpose functions; commands for one tool live in that tool's file.
+  Upgrade commands call `Update-WingetPackage` with the ID `tools.psd1` lists.
+- Never put a credential in a snippet or `local.ps1`, and never assign one there,
+  even empty, since an empty value deletes the variable. A command that saves one
+  stores it where Windows or the tool keeps it, as `Set-GitHubToken` does.
 
 ## PowerShell Files
 

@@ -20,13 +20,18 @@ function edit-last {
     code $file
 }
 
-# Update-PowerShell (update-pwsh) upgrades PowerShell 7 with winget. Restart the
-# terminal afterward to run the new version.
-function Update-PowerShell {
+# Update-WingetPackage ID upgrades one winget package, matched by its exact ID
+# from the winget source, as tools.psd1 lists them. The update-* commands use it.
+function Update-WingetPackage {
+    param([Parameter(Mandatory)][string]$Id)
     if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
         Write-Warning 'winget is not available: install App Installer from the Microsoft Store.'
         return
     }
-    winget upgrade --id Microsoft.PowerShell --exact --source winget --accept-source-agreements --accept-package-agreements
+    winget upgrade --id $Id --exact --source winget --accept-source-agreements --accept-package-agreements
 }
+
+# Update-PowerShell (update-pwsh) upgrades PowerShell 7 with winget. Restart the
+# terminal afterward to run the new version.
+function Update-PowerShell { Update-WingetPackage Microsoft.PowerShell }
 Set-Alias update-pwsh Update-PowerShell

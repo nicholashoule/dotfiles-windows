@@ -27,8 +27,9 @@ readonly REPO
 readonly PROFILE="$REPO/home/Documents/PowerShell/profile.ps1"
 # The commands the README documents for the profile.
 readonly -a PROFILE_COMMANDS=(
-    ls la ll env hist edit-last gs gitcm Update-PowerShell update-pwsh
-    New-GpgSigningKey new-gpg-key gpg-key-1y gpg-key-5y gpg-key-10y
+    ls la ll env hist edit-last gs gitcm Update-WingetPackage
+    Update-PowerShell update-pwsh Update-OhMyPosh update-omp
+    Set-GitHubToken set-gh-token New-GpgSigningKey new-gpg-key gpg-key-1y gpg-key-5y gpg-key-10y
     Get-GpgPublicKey gpg-pub Copy-GpgPublicKey gpg-pub-copy
     Get-GpgKeyId gpg-keyid Get-GpgKeyIdShort gpg-keyid-short
     Set-GitGpgSigningKey git-sign-key Add-SshKey
@@ -53,6 +54,40 @@ $problems
 if ($problems) { exit 1 }
 POWERSHELL
 readonly PROFILE_CHECK
+# COMMANDS_CHECK dot-sources CHECK_PROFILE and runs its commands against
+# stand-ins, printing each that misbehaves: the update commands must run an exact
+# winget upgrade of their package. Off Windows, where .NET does not save user
+# environment variables, Set-GitHubToken must ignore an empty answer, save a
+# trimmed one in the session, and remove it; on Windows it would change the real
+# user environment, so it is not run there.
+COMMANDS_CHECK=''
+IFS= read -r -d '' COMMANDS_CHECK <<'POWERSHELL' || true
+. $env:CHECK_PROFILE
+function winget { "winget $args" }
+$updates = @{ 'Update-PowerShell' = 'Microsoft.PowerShell'; 'Update-OhMyPosh' = 'JanDeDobbeleer.OhMyPosh' }
+$problems = @(
+    foreach ($update in $updates.GetEnumerator()) {
+        $output = "$(& $update.Key)"
+        if ($output -notlike "winget upgrade --id $($update.Value) --exact --source winget *") {
+            "$($update.Key) ran: $output"
+        }
+    }
+    if (-not $IsWindows) {
+        $env:GITHUB_TOKEN = 'old'
+        function Read-Host { [securestring]::new() }
+        $null = Set-GitHubToken 3>$null
+        if ($env:GITHUB_TOKEN -ne 'old') { 'Set-GitHubToken changed GITHUB_TOKEN on an empty answer' }
+        function Read-Host { ConvertTo-SecureString ' new ' -AsPlainText -Force }
+        $null = Set-GitHubToken
+        if ($env:GITHUB_TOKEN -ne 'new') { 'Set-GitHubToken did not save the trimmed answer' }
+        $null = Set-GitHubToken -Remove
+        if ($env:GITHUB_TOKEN) { 'Set-GitHubToken -Remove left GITHUB_TOKEN set' }
+    }
+)
+$problems
+if ($problems) { exit 1 }
+POWERSHELL
+readonly COMMANDS_CHECK
 # JSON_CHECK prints each file in JSON_FILES, one per line, that is not valid JSON.
 JSON_CHECK=''
 IFS= read -r -d '' JSON_CHECK <<'POWERSHELL' || true
@@ -183,13 +218,14 @@ run_helper() {
         HELPER_STATUS=$?
 }
 
-# load_profile HOME EMPTY_PATH prints the problems the profile has when loaded
-# in a new pwsh with HOME as the home and EMPTY_PATH as PATH, and fails if any.
-# pwsh's $HOME comes from USERPROFILE on Windows and from HOME elsewhere.
+# load_profile HOME EMPTY_PATH [CHECK] runs CHECK, PROFILE_CHECK by default, in a
+# new pwsh with HOME as the home and EMPTY_PATH as PATH, so no real tool runs,
+# printing the problems it finds and failing if any. pwsh's $HOME comes from
+# USERPROFILE on Windows and from HOME elsewhere.
 load_profile() {
     HOME=$1 USERPROFILE=$(native_path "$1") PATH=$2 CHECK_PROFILE=$PROFILE \
         CHECK_COMMANDS="${PROFILE_COMMANDS[*]}" \
-        "$PWSH" -NoLogo -NoProfile -NonInteractive -Command "$PROFILE_CHECK" 2>&1
+        "$PWSH" -NoLogo -NoProfile -NonInteractive -Command "${3:-$PROFILE_CHECK}" 2>&1
 }
 
 # check_profile loads the profile in a new pwsh whose home holds a copy of home/,
@@ -213,6 +249,22 @@ check_profile() {
     output=$(load_profile "$home" "$empty") || status=$?
     [[ $status -eq 0 && -z $output ]] || fail "profile with local.ps1" "exit status $status: $output"
     pass "the profile and its snippets load silently without their tools and define their commands"
+}
+
+# check_commands runs the profile's commands against stand-ins (see
+# COMMANDS_CHECK), in a home holding a copy of home/ and with an empty PATH.
+check_commands() {
+    local home empty output status=0
+    if [[ -z $PWSH ]]; then
+        skip "commands" "pwsh is not installed"
+        return
+    fi
+    home=$(new_home)
+    empty=$(new_home)
+    cp -R "$REPO/home/." "$home/"
+    output=$(load_profile "$home" "$empty" "$COMMANDS_CHECK") || status=$?
+    [[ $status -eq 0 && -z $output ]] || fail "commands" "exit status $status: $output"
+    pass "the update commands run an exact winget upgrade; off Windows, Set-GitHubToken saves and removes the token"
 }
 
 # check_init_helper NAME FILE checks a helper that creates FILE, relative to the
@@ -393,6 +445,7 @@ main() {
 
     check_powershell
     check_profile
+    check_commands
     check_helpers
     check_install_tools
     check_json

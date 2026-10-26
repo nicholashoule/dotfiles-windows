@@ -15,6 +15,7 @@
     WingetPackages = @(
         @{ Key = 'PowerShell';      Id = 'Microsoft.PowerShell';          Name = 'PowerShell 7' }
         @{ Key = 'Git';             Id = 'Git.Git';                       Name = 'Git' }
+        @{ Key = 'GitHubCLI';       Id = 'GitHub.cli';                    Name = 'GitHub CLI' }
         @{ Key = 'GnuPG';           Id = 'GnuPG.GnuPG';                   Name = 'GnuPG' }
         @{ Key = 'OhMyPosh';        Id = 'JanDeDobbeleer.OhMyPosh';       Name = 'Oh My Posh' }
         @{ Key = 'WindowsTerminal'; Id = 'Microsoft.WindowsTerminal';     Name = 'Windows Terminal' }

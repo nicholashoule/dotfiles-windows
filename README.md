@@ -13,9 +13,9 @@ manager's Go source lives in the `homeskillet` repository.
 
 - **Shell:** a PowerShell 7 profile that sets environment defaults and PATH,
   then loads one snippet per tool from `~\.config\powershell\profile.d`:
-  PSReadLine, aliases, functions, GnuPG, OpenSSH, and the prompt. Telemetry is
-  off wherever a tool allows it, and every snippet stays silent when its tool is
-  missing.
+  PSReadLine, aliases, functions, GitHub, GnuPG, OpenSSH, and the prompt.
+  Telemetry is off wherever a tool allows it, and every snippet stays silent
+  when its tool is missing.
 - **Prompt:** Oh My Posh themes, shared unchanged with `dotfiles-linux` and
   `dotfiles-macos`; `bubblesextra` by default.
 - **Terminal:** a Windows Terminal fragment that starts PowerShell without its
@@ -153,9 +153,10 @@ host, in this order:
 | --- | --- |
 | `00-psreadline.ps1` | In interactive consoles: Windows key bindings, history saved when the session exits, predictions from history and plugins as a list (inline in windows smaller than 50 columns by 5 rows), a menu of every completion on Tab, and syntax colors. It runs first because setting the edit mode resets key bindings that later files add. |
 | `aliases.ps1` | `ls [-a] [PATH]`, `la`, `ll`, and `env` as on Unix (`-a`, `-la`, or `-al` includes hidden items; `-l` is accepted), and `gs` and `gitcm` for `git status` and `git commit` |
-| `functions.ps1` | `hist PATTERN` searches this session's history by regular expression, `edit-last` opens the last command in VS Code, and `update-pwsh` (`Update-PowerShell`) upgrades PowerShell 7 with winget |
+| `functions.ps1` | `hist PATTERN` searches this session's history by regular expression, `edit-last` opens the last command in VS Code, `Update-WingetPackage ID` upgrades one winget package by its exact ID, and `update-pwsh` (`Update-PowerShell`) upgrades PowerShell 7 with it |
+| `github.ps1` | `set-gh-token` (`Set-GitHubToken`) saves a GitHub token as `GITHUB_TOKEN`; see [GitHub Token](#github-token) |
 | `gnupg.ps1` | `new-gpg-key` and `gpg-key-1y`, `-5y`, `-10y` create an Ed25519 signing key for Git's author identity variables; `gpg-keyid` and `gpg-keyid-short` list secret key IDs; `gpg-pub` and `gpg-pub-copy` print or copy public keys; `git-sign-key` makes Git sign commits, globally or with `-Local`, and takes `gpg-keyid` output from the pipeline |
-| `oh-my-posh.ps1` | In interactive sessions: the Oh My Posh prompt, when it is installed |
+| `oh-my-posh.ps1` | In interactive sessions: the Oh My Posh prompt, when it is installed. `update-omp` (`Update-OhMyPosh`) upgrades Oh My Posh with winget; open a new terminal afterward |
 | `ssh.ps1` | `Add-SshKey [PATH]` adds keys to the OpenSSH agent unless it already holds one |
 | `local.ps1` | Your machine's own settings, created by the `local` step and never linked |
 
@@ -173,6 +174,24 @@ Set-Service ssh-agent -StartupType Automatic; Start-Service ssh-agent
 git config --global core.sshCommand C:/Windows/System32/OpenSSH/ssh.exe
 ```
 
+### GitHub Token
+
+Builds that download dependencies from private GitHub repositories, such as a
+Makefile, read `GITHUB_TOKEN`, a personal access token with access to those
+repositories. `set-gh-token` asks for it without echoing it and saves it in your
+user environment variables, for this session and every program started
+afterward; terminals already open keep their old value until restarted. An
+empty answer changes nothing, and `Set-GitHubToken -Remove` deletes it. Run it
+again to replace the token.
+
+Windows keeps user environment variables unencrypted in the registry and passes
+them to every program you start, so give the token only the access the builds
+need, such as a fine-grained token with read-only contents access to those
+repositories. Keep it out of `local.ps1`, which is a plain file, and never set
+it to `''` there: that removes it from every session. The GitHub CLI reads
+`GITHUB_TOKEN` ahead of the login `gh auth login` stores, so while it is set, gh
+acts with the token's access (see `gh help environment`).
+
 ## Windows Terminal
 
 [powershell.json](<home/AppData/Local/Microsoft/Windows Terminal/Fragments/dotfiles-windows/powershell.json>)
@@ -188,9 +207,9 @@ yet verified on Windows.
 ## Customize
 
 - **This machine:** put settings in `~\.config\powershell\profile.d\local.ps1`.
-  It loads after `00-psreadline.ps1`, `aliases.ps1`, `functions.ps1`, and
-  `gnupg.ps1`, so it can replace what they set, and before `oh-my-posh.ps1`,
-  which reads its settings.
+  It loads after the snippets whose names sort before it, such as
+  `00-psreadline.ps1`, so it can replace what they set, and before
+  `oh-my-posh.ps1`, which reads its settings.
 - **Prompt theme:** set `OHMYPOSH_THEME`, in `local.ps1` or your user
   environment variables, to the name of a theme in
   `~\.config\oh-my-posh\themes` (without `.omp.json`) or the path to any theme
@@ -225,6 +244,11 @@ yet verified on Windows.
   entries saved since the terminal started.
 - **`Add-SshKey` says the agent is not running:** set the service to start at
   boot, as shown under [Snippets](#snippets).
+- **A build does not see `GITHUB_TOKEN`:** the terminal started before
+  `set-gh-token` ran; open a new one.
+- **`gh auth login` says `GITHUB_TOKEN` is being used for authentication:** gh
+  uses the token instead of its own login. Run `Set-GitHubToken -Remove` to go
+  back to gh's login, or `Remove-Item Env:GITHUB_TOKEN` for this session only.
 - **A commit is blocked:** the hook prints each problem as `file:line: reason`,
   without the secret. Remove the secret, or for a reviewed false positive add a
   `secret-scan: allow` comment or a `!path` exception to `.gitignore`.
@@ -236,7 +260,9 @@ This repository is public. [.gitignore](.gitignore) ignores credential, key,
 history, and environment files anywhere, including under `home/`. The pre-commit
 hook, [.githooks/pre-commit](.githooks/pre-commit), runs
 [scripts/check-secrets.sh](scripts/check-secrets.sh) on what each commit adds,
-and CI runs it on every tracked file. Turn the hook on once per clone:
+and CI runs it on every tracked file. Tokens the profile's commands save, such
+as `GITHUB_TOKEN`, go to your user environment variables, never to a file here.
+Turn the hook on once per clone:
 
 ```sh
 git config core.hooksPath .githooks
@@ -258,9 +284,11 @@ When `pwsh` is installed, `tests/check.sh` parses every PowerShell file with
 PowerShell's own parser. It loads the profile and its snippets in a new session
 whose home holds a copy of `home/` and whose PATH is empty, before and after
 `init-local.ps1` adds `local.ps1`, requiring them to print nothing, leave no
-variables behind, and define their commands. It runs each init helper in a
-temporary home, checks that `install-tools.ps1 -DryRun` installs every package
-`tools.psd1` lists, and parses every JSON file. It requires each PowerShell file
+variables behind, and define their commands. It runs the update commands
+against a stand-in winget and, off Windows, where nothing reaches the user
+environment, `Set-GitHubToken` against stand-in answers. It runs each init
+helper in a temporary home, checks that `install-tools.ps1 -DryRun` installs
+every package `tools.psd1` lists, and parses every JSON file. It requires each PowerShell file
 to be ASCII either way, since Windows PowerShell 5.1 misreads anything else.
 Given a homeskillet binary, it confirms the manifest targets Windows only, then
 acts for Windows with `--platform windows`: it links every file under `home/`
