@@ -18,7 +18,7 @@ function Set-GitHubToken {
     param([switch]$Remove)
     if ($Remove) {
         [Environment]::SetEnvironmentVariable('GITHUB_TOKEN', $null, 'User')
-        Remove-Item Env:GITHUB_TOKEN -ErrorAction SilentlyContinue
+        Remove-Item Env:GITHUB_TOKEN -ErrorAction Ignore
         'Removed GITHUB_TOKEN from your user environment variables and this session.'
         return
     }

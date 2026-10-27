@@ -1,8 +1,9 @@
 # The winget packages for this machine, installed as ~\.config\winget\tools.psd1.
 # https://learn.microsoft.com/windows/package-manager/winget/install
 #
-# The winget-tools setup step runs install-tools.ps1, which installs or upgrades
-# every package listed here; run it yourself any time, or without homeskillet:
+# The winget-tools setup step runs install-tools.ps1 -NoUpgrade, which installs
+# every package listed here that is missing; run it yourself to upgrade them
+# too, any time and without homeskillet:
 #   install-tools.ps1 [-NoUpgrade] [-DryRun]
 # Each entry needs an Id, matched with `winget install --exact`, which compares
 # case too, so copy IDs from `winget show`. Key and Name are for people.

@@ -7,7 +7,7 @@
         {
           "foreground": "#E5C07B",
           "options": {
-            "time_format": "15:04:05"
+            "time_format": "Mon Jan _2 03:04:05 PM MST 2006"
           },
           "style": "plain",
           "template": "[{{ .CurrentDate | date .Format }}]",
@@ -22,7 +22,7 @@
         {
           "foreground": "#61AFEF",
           "options": {
-            "style": "agnoster"
+            "style": "full"
           },
           "style": "plain",
           "template": " {{ .Path }} on",

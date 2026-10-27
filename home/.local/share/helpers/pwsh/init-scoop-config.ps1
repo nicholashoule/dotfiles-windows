@@ -16,6 +16,10 @@
 # Exit status: 0 when the file exists or was created, 1 on failure, 2 for usage errors.
 # Runs on PowerShell 7.
 # https://github.com/ScoopInstaller/Scoop/wiki/Scoop-Configuration
+# Invoke-Main and the functions it calls read these from the script scope, which
+# the analyzer does not follow.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'Invoke-Main reads the parameters')]
 param([switch]$DryRun, [switch]$Force, [switch]$Help)
 
 $ErrorActionPreference = 'Stop'
@@ -34,8 +38,8 @@ function Write-Usage {
     'up an existing one and replaces it; -DryRun only reports what would happen.'
 }
 
-# Get-Settings prints the configuration, in the form Scoop writes it back.
-function Get-Settings {
+# Get-Configuration prints the configuration, in the form Scoop writes it back.
+function Get-Configuration {
     @'
 {
   "scoop_repo": "https://github.com/Ash258/Scoop-Core",
@@ -122,7 +126,7 @@ function Invoke-Main {
         "Moved $configFile to $backup."
     }
     try {
-        Write-NewFile $configFile (Get-Settings)
+        Write-NewFile $configFile (Get-Configuration)
     } catch {
         $old = if ($backup) { "; the old one is $backup" } else { '' }
         Stop-Helper "could not create ${configFile}: $($_.Exception.Message)$old"

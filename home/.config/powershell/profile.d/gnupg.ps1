@@ -30,7 +30,7 @@ function New-GpgSigningKey {
         'Then find the key ID with gpg-keyid, and sign commits with git-sign-key.'
         return
     }
-    if (-not (Get-Command gpg -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command gpg -ErrorAction Ignore)) {
         Write-Warning 'gpg is not available: install it with winget install --id GnuPG.GnuPG --exact.'
         return
     }
@@ -57,7 +57,7 @@ function Get-GpgPublicKey {
         [Alias('c')]
         [switch]$Clipboard
     )
-    if (-not (Get-Command gpg -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command gpg -ErrorAction Ignore)) {
         Write-Warning 'gpg is not available: install it with winget install --id GnuPG.GnuPG --exact.'
         return
     }
@@ -70,7 +70,7 @@ function Get-GpgPublicKey {
         return
     }
     $publicKey | Set-Clipboard
-    Write-Host 'Public key copied to the clipboard.'
+    Write-Information 'Public key copied to the clipboard.' -InformationAction Continue
 }
 Set-Alias gpg-pub Get-GpgPublicKey
 function Copy-GpgPublicKey {
@@ -87,7 +87,7 @@ function Get-GpgKeyId {
         [string]$Identity,
         [switch]$Short
     )
-    if (-not (Get-Command gpg -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command gpg -ErrorAction Ignore)) {
         Write-Warning 'gpg is not available: install it with winget install --id GnuPG.GnuPG --exact.'
         return
     }
@@ -136,7 +136,7 @@ function Set-GitGpgSigningKey {
             return
         }
         foreach ($tool in 'git', 'gpg') {
-            if (-not (Get-Command $tool -ErrorAction SilentlyContinue)) {
+            if (-not (Get-Command $tool -ErrorAction Ignore)) {
                 Write-Warning "$tool is not available on PATH."
                 return
             }
@@ -177,7 +177,7 @@ function Set-GitGpgSigningKey {
                 return
             }
         }
-        Write-Host "Git now signs commits ($($scope.TrimStart('-'))) with key $signingKey."
+        Write-Information "Git now signs commits ($($scope.TrimStart('-'))) with key $signingKey." -InformationAction Continue
     }
 }
 Set-Alias git-sign-key Set-GitGpgSigningKey

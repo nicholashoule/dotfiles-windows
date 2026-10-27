@@ -5,8 +5,7 @@
 # install, so run these by hand:
 #   pre-commit run --all-files   # every check on every tracked file
 #   pre-commit autoupdate        # refresh the revs below
-# The ShellCheck hook runs ShellCheck's official Docker image, so it needs
-# Docker; without it, skip that hook with SKIP=shellcheck.
+# ShellCheck is left to CI, which runs on Linux; these run on Windows.
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -28,9 +27,3 @@ repos:
       - id: detect-private-key
       - id: detect-aws-credentials
         args: [--allow-missing-credentials]
-
-  # Bash files (the repository tooling), found by extension or shebang.
-  - repo: https://github.com/koalaman/shellcheck-precommit
-    rev: v0.11.0
-    hooks:
-      - id: shellcheck

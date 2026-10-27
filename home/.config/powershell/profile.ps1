@@ -1,18 +1,21 @@
-# PowerShell 7 profile for the current user in every host
-# ($PROFILE.CurrentUserAllHosts): pwsh runs it at the start of every session that
-# loads profiles, before the host's own profile, $PROFILE.
+# PowerShell 7 profile for the current user in every host: pwsh runs it at the
+# start of every session that loads profiles, before the host's own profile,
+# $PROFILE.
 # https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_profiles
 #
-# homeskillet links it to ~\Documents\PowerShell\profile.ps1, which OneDrive
-# holds when it backs up Documents, so this file stays small and the rest lives
-# under ~\.config and ~\.local, outside Documents. Keep this file ASCII: Windows
-# PowerShell 5.1 reads a script without a byte-order mark in the system's ANSI
-# code page, which garbles anything else.
+# On Windows, PowerShell reads this profile only from Documents\PowerShell
+# ($PROFILE.CurrentUserAllHosts), and OneDrive may redirect Documents, so this
+# file lives in $HOME\.config\powershell and the profile setup step
+# (init-profile.ps1) puts a stub in Documents that dot-sources it. On Linux and
+# macOS, $HOME/.config/powershell/profile.ps1 is PowerShell's own path. Keep this
+# file ASCII: Windows PowerShell 5.1 reads a script without a byte-order mark in
+# the system's ANSI code page, which garbles anything else.
 #
 # Order of operations:
+#   0. the stub in Documents      dot-sources this file, if it exists
 #   1. this file                  environment defaults, PATH, and the helpers
-#                                 in ~\.local\share\helpers\pwsh, appended
-#   2. ~\.config\powershell\profile.d\*.ps1
+#                                 in $HOME\.local\share\helpers\pwsh, appended
+#   2. $HOME\.config\powershell\profile.d\*.ps1
 #                                 one file per tool, dot-sourced in alphabetical
 #                                 order; prefix a name with 00- or zz- to run it
 #                                 first or last. Machine-specific settings go in
@@ -49,16 +52,19 @@ if ($IsWindows) {
         if ($pathEntry -and $pathSeen.Add($pathEntry.TrimEnd('\'))) { $pathEntry }
     }
     $env:PATH = $pathEntries -join ';'
-    Remove-Variable pathSeen, pathEntries, pathEntry -ErrorAction SilentlyContinue
+    Remove-Variable pathSeen, pathEntries, pathEntry -ErrorAction Ignore
 }
-# Helper commands from this repository, appended so they never shadow another
-# command.
-$helpersPath = Join-Path $HOME '.local/share/helpers/pwsh'
-if ((Test-Path -LiteralPath $helpersPath -PathType Container) -and
-    ($env:PATH -split [System.IO.Path]::PathSeparator) -notcontains $helpersPath) {
-    $env:PATH = $env:PATH + [System.IO.Path]::PathSeparator + $helpersPath
+# $HOME\.local\bin, where homeskillet, uv, and other installers put commands,
+# and then helper commands from this repository, each appended so it never
+# shadows another command. Add $HOME\.local\bin to your saved user PATH too, for
+# programs started outside PowerShell; homeskillet says when it is missing.
+foreach ($pathAddition in (Join-Path $HOME '.local/bin'), (Join-Path $HOME '.local/share/helpers/pwsh')) {
+    if ((Test-Path -LiteralPath $pathAddition -PathType Container) -and
+        ($env:PATH -split [System.IO.Path]::PathSeparator) -notcontains $pathAddition) {
+        $env:PATH = $env:PATH + [System.IO.Path]::PathSeparator + $pathAddition
+    }
 }
-Remove-Variable helpersPath -ErrorAction SilentlyContinue
+Remove-Variable pathAddition -ErrorAction Ignore
 
 # One file per tool. The extension check skips names such as local.ps1.bak.*,
 # and the leaf check skips dangling links, for example after the clone moves.
@@ -70,4 +76,4 @@ if (Test-Path -LiteralPath $profileSnippets -PathType Container) {
         }
     }
 }
-Remove-Variable profileSnippets, profileSnippet -ErrorAction SilentlyContinue
+Remove-Variable profileSnippets, profileSnippet -ErrorAction Ignore

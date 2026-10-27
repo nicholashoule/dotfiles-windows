@@ -8,8 +8,10 @@
 # (or -la, -al) hidden ones too, and -l is accepted because Get-ChildItem always
 # shows the long form. When Coreutils for Windows' integration is in $PROFILE,
 # lines typed at the prompt run its ls, la, and env instead.
-Remove-Item Alias:\ls -Force -ErrorAction SilentlyContinue
+Remove-Item Alias:\ls -Force -ErrorAction Ignore
 function ls {
+    [Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', 'l',
+        Justification = '-l is accepted for habit; Get-ChildItem always shows the long form')]
     param([switch]$a, [switch]$l, [switch]$la, [switch]$al, [string]$Path = '.')
     Get-ChildItem -Path $Path -Force:($a -or $la -or $al)
 }

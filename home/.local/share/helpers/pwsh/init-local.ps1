@@ -16,6 +16,10 @@
 # Exit status: 0 when the file exists or was created, 1 on failure, 2 for usage errors.
 # Runs on PowerShell 7.
 # https://learn.microsoft.com/powershell/module/microsoft.powershell.core/about/about_profiles
+# Invoke-Main and the functions it calls read these from the script scope, which
+# the analyzer does not follow.
+[Diagnostics.CodeAnalysis.SuppressMessageAttribute('PSReviewUnusedParameter', '',
+    Justification = 'Invoke-Main reads the parameters')]
 param([switch]$DryRun, [switch]$Force, [switch]$Help)
 
 $ErrorActionPreference = 'Stop'

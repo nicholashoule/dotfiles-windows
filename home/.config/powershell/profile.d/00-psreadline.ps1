@@ -25,5 +25,5 @@ if (Get-Module PSReadLine) {
     }
     Set-PSReadLineOption @psReadLineOptions
     Set-PSReadLineKeyHandler -Key Tab -Function MenuComplete
-    Remove-Variable psReadLineView, psReadLineOptions -ErrorAction SilentlyContinue
+    Remove-Variable psReadLineView, psReadLineOptions -ErrorAction Ignore
 }

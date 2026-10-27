@@ -11,7 +11,7 @@ function hist {
 
 # edit-last opens the last command in VS Code, for turning it into a script.
 function edit-last {
-    if (-not (Get-Command code -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command code -ErrorAction Ignore)) {
         Write-Warning 'edit-last needs VS Code: the code command is not on PATH.'
         return
     }
@@ -24,7 +24,7 @@ function edit-last {
 # from the winget source, as tools.psd1 lists them. The update-* commands use it.
 function Update-WingetPackage {
     param([Parameter(Mandatory)][string]$Id)
-    if (-not (Get-Command winget -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command winget -ErrorAction Ignore)) {
         Write-Warning 'winget is not available: install App Installer from the Microsoft Store.'
         return
     }

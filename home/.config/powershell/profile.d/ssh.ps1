@@ -11,7 +11,7 @@
 # at PATH, or else each of ~\.ssh\id_ed25519, id_rsa, and id_ecdsa that exists.
 function Add-SshKey {
     param([string]$KeyPath)
-    if (-not (Get-Command ssh-add -ErrorAction SilentlyContinue)) {
+    if (-not (Get-Command ssh-add -ErrorAction Ignore)) {
         Write-Warning 'ssh-add is not available: add the OpenSSH Client optional feature.'
         return
     }
