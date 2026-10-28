@@ -128,7 +128,7 @@ tools write into, beside the links. Neither lists files, so every file under
 | Step | Manifest | Runs | Done when |
 | --- | --- | --- | --- |
 | `powershell` | `bootstrap.json` | `winget install` for PowerShell 7 | `pwsh` is on PATH |
-| `winget-tools` | `bootstrap.json` | `install-tools.ps1 -NoUpgrade` on the clone's `tools.psd1`: installs what is missing | never; offered every run, and changes nothing once every package is installed |
+| `winget-tools` | `bootstrap.json` | `install-tools.ps1 -NoUpgrade` on the clone's `tools.psd1`: installs what is missing | it has succeeded with `tools.psd1` and `install-tools.ps1` as they are; a change to either offers it again |
 | `meslo-nerd-font` | `bootstrap.json` | `oh-my-posh font install Meslo` | MesloLGM Nerd Font is in your per-user fonts folder |
 | `dotnet-sdk` | `bootstrap.json` | `install-dotnet.ps1`: the latest LTS .NET SDK into `~\.dotnet` | `~\.dotnet\dotnet.exe` exists |
 | `go` | `bootstrap.json` | `install-golang.ps1`: the newest patch of the Go release one behind the latest into `~\.local\share\go` | `go` is on PATH |
@@ -166,6 +166,15 @@ The `winget-tools` step only installs what is missing, so rerunning setup never
 upgrades a package in use, which some installers, such as Git's, refuse to do.
 Upgrade on purpose with `install-tools.ps1`, which upgrades by default, or one
 package with commands such as `update-pwsh` and `update-omp`.
+
+The steps that install from a list, `winget-tools` and `wsl-apt-packages`,
+name the list and its helper as `inputs`: homeskillet records them when the
+step succeeds and counts the step done until one of them changes, so adding a
+package to the list offers the step again. After uninstalling a listed package
+by hand, name the step to run it anyway: `homeskillet setup . winget-tools`.
+`inputs` is not in a homeskillet release yet; a homeskillet that reads
+`bootstrap.json` but predates it refuses the manifest, so run
+`install-tools.ps1` by hand there.
 
 The font step installs every Meslo face for the current user, without
 elevation; running it on Windows 11 with Oh My Posh 31.9 wrote the file the
@@ -419,7 +428,7 @@ Windows' VS Code through its WSL extension, and its font step. The WSL steps:
 
 | Step | Manifest | Runs | Done when |
 | --- | --- | --- | --- |
-| `wsl-apt-packages` | `bootstrap.json` | `install-apt-packages.sh` on `~/.config/apt/packages`: the missing packages, with `sudo` | never; offered every run, and changes nothing once every package is installed |
+| `wsl-apt-packages` | `bootstrap.json` | `install-apt-packages.sh` on `~/.config/apt/packages`: the missing packages, with `sudo` | it has succeeded with the list and `install-apt-packages.sh` as they are; a change to either offers it again |
 | `wsl-oh-my-posh` | `bootstrap.json` | `install-oh-my-posh.sh`: Oh My Posh's latest release, checked against its checksums, into `~/.local/bin` | `oh-my-posh` is on PATH |
 | `wsl-dotnet-sdk` | `bootstrap.json` | `install-dotnet.sh`: the latest LTS .NET SDK into `~/.dotnet` | `~/.dotnet/dotnet` exists |
 | `wsl-go` | `bootstrap.json` | `install-go.sh`: the newest patch of the Go release one behind the latest into `~/.local/share/go` | `~/.local/share/go/bin/go` exists, so an older `go` from apt does not count |
@@ -428,9 +437,12 @@ Windows' VS Code through its WSL extension, and its font step. The WSL steps:
 
 `sudo` asks for your Linux password only at a terminal, so run
 `homeskillet wsl setup .` without `--yes`; unattended, `install-apt-packages.sh`
-says what it needs and fails rather than wait. Linking and setup inside a real
-distribution are not yet verified; the checks run them acting for Linux in a
-temporary home, and the helpers' dry runs ran in Ubuntu 24.04.
+says what it needs and fails rather than wait. `homeskillet wsl link` and
+`setup` ran in Ubuntu 24.04 under WSL 2: every file linked, the shells loaded
+silently, and the Oh My Posh, .NET, and Go steps installed in a temporary home.
+`install-apt-packages.sh` has run only as a dry run and with every listed
+package installed already, so installing through `sudo` is not yet verified.
+The checks run linking and setup acting for Linux in a temporary home.
 
 ## Customize
 
@@ -590,8 +602,11 @@ Windows', and with `dotfiles-linux` and `dotfiles-macos` cloned beside this
 repository, the themes to match theirs and every copy in `home/wsl/` to match
 `dotfiles-linux`'s. It parses every JSON file and checks the two manifests:
 each declares only Windows and lists no files, no step is in both, every
-`dotfiles.json` step creates a file, every file under `home/` a step uses
-exists, and the `wsl-` steps alone are for Linux and use `home/wsl/`. From a local
+`dotfiles.json` step creates a file, every step has `creates`, `provides`, or
+`inputs`, so none is offered every run, every file under `home/` a step uses
+or lists as an input exists, inputs are under `home/`, and the `wsl-` steps
+alone are for Linux and use `home/wsl/`; a copy that breaks each rule about done
+checks and inputs must fail with exactly those problems. From a local
 release list, given with `GO_RELEASE_LIST`, it checks which Go
 `install-golang.ps1 -DryRun` picks: the release before the latest by default,
 the latest with `--latest`, and a newer patch on a rerun. When oh-my-posh is

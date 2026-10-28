@@ -33,7 +33,10 @@ to change it without breaking its guarantees.
   never list files, and each declares `"platforms": ["windows"]`:
   `bootstrap.json` holds the setup steps that install tools, and
   `dotfiles.json` the ones that create files, such as the `init-*.ps1` steps. A
-  step name appears in only one of them. WSL's steps sit beside the others,
+  step name appears in only one of them. Every step says how setup knows it is
+  done, so none is offered every run: `creates` or `provides`, or, for a step
+  that installs from a list, `inputs` naming the list and its helper, which
+  homeskillet fingerprints. WSL's steps sit beside the others,
   named `wsl-` and with `"platforms": ["linux"]` of their own, and use files
   under `home/wsl/` alone. Repository tooling (`scripts/`, `tests/`, `.githooks/`,
   CI) stays outside `home/` and runs with Bash on Linux and macOS. Helper

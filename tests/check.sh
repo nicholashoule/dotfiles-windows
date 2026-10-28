@@ -243,10 +243,12 @@ POWERSHELL
 readonly DOTNET_CHECK
 # MANIFEST_CHECK prints each way the manifests in CHECK_REPO break the rules
 # AGENTS.md gives them: each declares only Windows and lists no files, no step
-# name is in both, each dotfiles.json step creates a file, and every file under
-# home/ that a step runs or passes exists. A WSL step names "linux" alone in
-# its own platforms, starts its name with wsl-, and uses files under home/wsl
-# alone; every other step takes the Windows default and uses none of them.
+# name is in both, each dotfiles.json step creates a file, every step says how
+# setup knows it is done (creates, provides, or inputs), and every file under
+# home/ that a step runs or passes exists, as does each input, which is under
+# home/. A WSL step names "linux" alone in its own platforms, starts its name
+# with wsl-, and uses files under home/wsl alone; every other step takes the
+# Windows default and uses none of them.
 MANIFEST_CHECK=''
 IFS= read -r -d '' MANIFEST_CHECK <<'POWERSHELL' || true
 $names = @()
@@ -259,11 +261,18 @@ $problems = @(
             if ($names -contains $step.name) { "$file lists the $($step.name) step, which is listed already" }
             $names += $step.name
             if ($file -eq 'dotfiles.json' -and -not $step.creates) { "dotfiles.json's $($step.name) step creates no file" }
+            if (-not ($step.creates -or $step.provides -or $step.inputs)) {
+                "the $($step.name) step has no creates, provides, or inputs, so setup offers it every run"
+            }
             $own = @($step.platforms) -join ','
             $wsl = $own -eq 'linux'
             if ($own -and -not $wsl) { "the $($step.name) step's platforms are $own, not linux alone" }
             if ($wsl -ne ($step.name -like 'wsl-*')) { "the $($step.name) step's name does not say whether it is for WSL" }
-            foreach ($word in @($step.run | ForEach-Object { $_ })) {
+            $inputs = @($step.inputs | Where-Object { $null -ne $_ })
+            foreach ($path in $inputs) {
+                if ($path -notlike 'home/*') { "the $($step.name) step's input $path is not under home/" }
+            }
+            foreach ($word in @($step.run | ForEach-Object { $_ }) + $inputs) {
                 if ($word -like 'home/*' -and -not (Test-Path -LiteralPath (Join-Path $env:CHECK_REPO $word) -PathType Leaf)) {
                     "the $($step.name) step uses $word, which does not exist"
                 }
@@ -959,9 +968,11 @@ check_wsl_home() {
 }
 
 # check_manifests checks bootstrap.json and dotfiles.json against the rules
-# AGENTS.md gives them (see MANIFEST_CHECK), without a manager.
+# AGENTS.md gives them (see MANIFEST_CHECK), without a manager, then checks
+# that a copy whose bootstrap.json breaks each rule about done checks and
+# inputs once is caught, with exactly those problems.
 check_manifests() {
-    local output status=0
+    local output status=0 repo expected
     if [[ -z $PWSH ]]; then
         skip "manifests" "pwsh is not installed"
         return
@@ -970,6 +981,31 @@ check_manifests() {
         "$PWSH" -NoLogo -NoProfile -NonInteractive -Command "$MANIFEST_CHECK" 2>&1) || status=$?
     [[ $status -eq 0 && -z $output ]] || fail "manifests" "exit status $status: $output"
     pass "bootstrap.json installs tools and dotfiles.json creates files, each for Windows, sharing no step"
+
+    repo=$(mktemp -d "$TEST_ROOT/manifests.XXXXXX")
+    cp -R "$REPO/home" "$REPO/dotfiles.json" "$repo/"
+    cat >"$repo/bootstrap.json" <<'JSON'
+{
+  "platforms": ["windows"],
+  "setup": [
+    { "name": "always", "run": ["pwsh", "-File", "home/.local/share/helpers/pwsh/install-tools.ps1"] },
+    { "name": "outside", "run": ["pwsh"], "inputs": ["scripts/check-secrets.sh"] },
+    { "name": "missing", "run": ["pwsh"], "inputs": ["home/.config/winget/missing.psd1"] },
+    { "name": "wsl-crossed", "run": ["bash"], "platforms": ["linux"], "inputs": ["home/.config/winget/tools.psd1"] }
+  ]
+}
+JSON
+    expected="the always step has no creates, provides, or inputs, so setup offers it every run
+the outside step's input scripts/check-secrets.sh is not under home/
+the missing step uses home/.config/winget/missing.psd1, which does not exist
+the wsl-crossed step is for WSL but uses home/.config/winget/tools.psd1"
+    status=0
+    output=$(CHECK_REPO=$(native_path "$repo") \
+        "$PWSH" -NoLogo -NoProfile -NonInteractive -Command "$MANIFEST_CHECK" 2>&1) || status=$?
+    output=${output//$'\r'/}
+    [[ $status -eq 1 && $output == "$expected" ]] ||
+        fail "manifests, broken copy" "exit status $status: $output"
+    pass "every step says how setup knows it is done, and its inputs are files under its own part of home/"
 }
 
 # step_names MANIFEST PLATFORM prints the name of each setup step MANIFEST lists

@@ -14,7 +14,8 @@
       "run": [
         "pwsh", "-NoLogo", "-NoProfile", "-File", "home/.local/share/helpers/pwsh/install-tools.ps1",
         "-Path", "home/.config/winget/tools.psd1", "-NoUpgrade"
-      ]
+      ],
+      "inputs": ["home/.config/winget/tools.psd1", "home/.local/share/helpers/pwsh/install-tools.ps1"]
     },
     {
       "name": "meslo-nerd-font",
@@ -34,7 +35,8 @@
     {
       "name": "wsl-apt-packages",
       "run": ["bash", "home/wsl/.local/share/helpers/sh/install-apt-packages.sh", "home/wsl/.config/apt/packages"],
-      "platforms": ["linux"]
+      "platforms": ["linux"],
+      "inputs": ["home/wsl/.config/apt/packages", "home/wsl/.local/share/helpers/sh/install-apt-packages.sh"]
     },
     {
       "name": "wsl-oh-my-posh",
