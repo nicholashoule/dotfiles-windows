@@ -412,12 +412,19 @@ check_powershell() {
 
 # run_helper HOME NAME [ARGUMENT...]
 # Runs the helper NAME with HOME as the home, keeping its output in
-# HELPER_OUTPUT and its exit status in HELPER_STATUS.
+# HELPER_OUTPUT and its exit status in HELPER_STATUS. XDG_CONFIG_HOME, which
+# init-scoop-config.ps1 follows, is CHECK_CONFIG_HOME, empty unless the caller
+# sets it, which counts as unset; a session's own, as GitHub's runners set,
+# would lead outside the test home. On Linux and macOS, pwsh keeps its own
+# cache and modules in XDG_CACHE_HOME and XDG_DATA_HOME, or else under HOME,
+# so they point into the test root, and HOME holds only what the helper writes.
 run_helper() {
     local home=$1 name=$2
     shift 2
     HELPER_STATUS=0
-    HELPER_OUTPUT=$(HOME=$home "$PWSH" -NoLogo -NoProfile -NonInteractive -File "$HELPERS/$name" "$@" 2>&1) ||
+    HELPER_OUTPUT=$(HOME=$home XDG_CONFIG_HOME=${CHECK_CONFIG_HOME-} \
+        XDG_CACHE_HOME=$TEST_ROOT/pwsh/cache XDG_DATA_HOME=$TEST_ROOT/pwsh/data \
+        "$PWSH" -NoLogo -NoProfile -NonInteractive -File "$HELPERS/$name" "$@" 2>&1) ||
         HELPER_STATUS=$?
 }
 
@@ -806,6 +813,13 @@ check_helpers() {
     fi
     check_init_helper "$(new_home)" init-local.ps1 .config/powershell/profile.d/local.ps1
     check_init_helper "$(new_home)" init-scoop-config.ps1 .config/scoop/config.json
+    # Scoop reads its configuration from XDG_CONFIG_HOME when that is set, so
+    # init-scoop-config.ps1 writes it there instead.
+    home=$(new_home)
+    CHECK_CONFIG_HOME=$(native_path "$home/xdg") run_helper "$home" init-scoop-config.ps1
+    [[ $HELPER_STATUS -eq 0 && -f $home/xdg/scoop/config.json && ! -e $home/.config ]] ||
+        fail "init-scoop-config.ps1, XDG_CONFIG_HOME" "exit status $HELPER_STATUS: $HELPER_OUTPUT"
+    pass "init-scoop-config.ps1 creates the configuration in XDG_CONFIG_HOME when that is set"
     home=$(new_home)
     check_init_helper "$home" init-profile.ps1 "$STUB" -Path "$(native_path "$home/$STUB")"
 

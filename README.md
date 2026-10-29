@@ -605,8 +605,11 @@ the update commands against a stand-in winget and, off Windows, where nothing
 reaches the user environment, `Set-GitHubToken` against stand-in answers. It
 loads the profile with stand-ins for the installers' toolchains to check PATH,
 and points `APPDATA` into the temporary home, so tools the profile runs, such
-as `go telemetry off`, never change your real settings. It runs each init
-helper in a temporary home, checks that `install-tools.ps1 -DryRun` installs
+as `go telemetry off`, never change your real settings. It runs each helper
+in a temporary home, with `XDG_CONFIG_HOME` cleared and pwsh's own cache and
+modules kept outside it, so a helper never writes your real configuration;
+checks that `init-scoop-config.ps1` follows `XDG_CONFIG_HOME` when it is set;
+checks that `install-tools.ps1 -DryRun` installs
 every package `tools.psd1` lists, and runs it against a stand-in winget to
 check its one-line report and that `-NoUpgrade` leaves installed packages
 alone. It checks that the toolchain installers reject bad arguments before
