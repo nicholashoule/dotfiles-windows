@@ -6,12 +6,8 @@ configuration, its setup steps and helpers, and checks; the manager's Go source
 lives in the `homeskillet` repository.
 
 > **Requires** [homeskillet](https://github.com/nicholashoule/homeskillet)
-> 0.2.0 or later, the first release that runs natively on Windows, reads
-> `bootstrap.json`, and has `homeskillet wsl`; 0.3.0 adds `homeskillet update`.
-> Releases 0.2.0 and 0.3.0 both pass the checks, natively on Windows 11, and
-> 0.3.0 finds this repository linked and its setup steps done there and in its
-> WSL distribution. Without homeskillet, installing is manual (see
-> [Install](#install)).
+> 0.2.0 or later; 0.3.0 adds `homeskillet update`. Both pass the checks on
+> Windows 11.
 
 ## What's Included
 
@@ -44,21 +40,19 @@ lives in the `homeskillet` repository.
 
 ## Install
 
-On a new machine, in this order:
+On a new machine, in Windows PowerShell, in this order. PowerShell 7 comes
+later, from the first setup step.
 
-1. **PowerShell 7 and Git**, from Windows PowerShell or a command prompt. The
-   helpers run in PowerShell 7, whose default execution policy runs local
-   scripts:
+1. **Git**, to clone this repository:
 
    ```powershell
-   winget install --id Microsoft.PowerShell --exact --source winget
    winget install --id Git.Git --exact --source winget
    ```
 
-2. **The clone** of this repository, or of your fork (see
-   [Customize](#customize)), in a new PowerShell 7 terminal, kept in a
-   permanent location under your profile directory and outside OneDrive,
-   because the links point into it, with the pre-commit hook turned on:
+2. **The clone**, in a new terminal. Use your fork's URL if you have one (see
+   [Customize](#customize)), and keep the clone under your profile directory
+   and outside OneDrive, since the links point into it. The last line turns on
+   the pre-commit hook, which keeps secrets out of your commits:
 
    ```powershell
    git clone https://github.com/OWNER/dotfiles-windows.git $HOME\projects\dotfiles-windows
@@ -66,37 +60,47 @@ On a new machine, in this order:
    git config core.hooksPath .githooks
    ```
 
-3. **Developer Mode**, which lets homeskillet create links, and install itself,
-   without administrator rights. From the clone, approve the Windows prompt:
+3. **Developer Mode**, so homeskillet can create links without administrator
+   rights. Turn it on in the Settings page this opens:
 
    ```powershell
-   pwsh -NoProfile -File home\.local\share\helpers\pwsh\enable-developer-mode.ps1
+   Start-Process ms-settings:developers
    ```
 
-4. **homeskillet**, from its
-   [Releases](https://github.com/nicholashoule/homeskillet/releases), as its
-   `docs/windows.md` describes: download `homeskillet-windows-amd64.exe`
-   (`-arm64.exe` on Arm) and `SHA256SUMS`, compare the hash, and install it:
+4. **homeskillet**: download `homeskillet-windows-amd64.exe` (`-arm64.exe` on
+   Arm) and `SHA256SUMS` from its
+   [Releases](https://github.com/nicholashoule/homeskillet/releases), then:
 
    ```powershell
-   (Get-FileHash .\homeskillet-windows-amd64.exe -Algorithm SHA256).Hash  # compare with SHA256SUMS
+   (Get-FileHash .\homeskillet-windows-amd64.exe).Hash  # must match SHA256SUMS
    .\homeskillet-windows-amd64.exe self install
    ```
 
-   It installs into `~\.local\bin`; add that folder to your user Path if
-   homeskillet says it is missing, and open a new terminal. From then on,
-   `homeskillet update` installs each new release, checked against its
-   `SHA256SUMS`, and keeps the version before it, which
-   `homeskillet use previous` runs again.
-5. **This repository**, from the clone: `homeskillet check .` lists any issue
-   in its manifests and files, `homeskillet status .` reports each file,
-   `homeskillet link .` links every file under `home/`, and
-   `homeskillet setup .` offers the [setup steps](#setup-steps). At a
-   terminal, `link` and `status` end by saying how many steps are pending.
-6. **WSL**, optionally: `enable-wsl.ps1`, which is on PATH once the profile
-   loads (see [Helpers](#helpers)), then, from the clone,
-   `homeskillet wsl install`, `homeskillet wsl link .`, and
-   `homeskillet wsl setup .` (see [WSL](#wsl)).
+   Open a new terminal. If homeskillet says `~\.local\bin` is not on your
+   Path, add it to your user Path first. Later, `homeskillet update` installs
+   new releases.
+
+5. **Link and set up**, from the clone:
+
+   ```powershell
+   homeskillet check .   # report any problem in the manifests or files
+   homeskillet link .    # link every file under home/
+   homeskillet setup .   # review the setup steps and run the ones you approve
+   ```
+
+   Setup installs PowerShell 7 first, then the tools, font, and toolchains,
+   and creates the profile stub (see [Setup Steps](#setup-steps)). Then open a
+   new PowerShell 7 terminal, which loads the profile.
+
+6. **WSL**, optionally, in PowerShell 7, from the clone (see [WSL](#wsl)):
+
+   ```powershell
+   enable-wsl.ps1             # turn on WSL and install Ubuntu; restart if it asks
+   wsl                        # once, to create your Linux user; then exit
+   homeskillet wsl install    # homeskillet's Linux build in the distribution
+   homeskillet wsl link .     # link home/wsl/ into its home
+   homeskillet wsl setup .    # review the wsl- steps and run the ones you approve
+   ```
 
 Without homeskillet, link or copy the files by hand:
 each file under `home/` belongs at the same path under your profile directory
@@ -160,9 +164,12 @@ their own: `homeskillet setup` on Windows skips them, and
 
 PowerShell 7 comes first because the helpers run in it, through
 `pwsh -NoProfile -File`, which its default execution policy allows for local
-scripts. winget adds programs to PATH for new processes only, so a first run
-stops at the first step that needs a program installed earlier in the same run:
-open a new terminal and run setup again. `homeskillet setup . --dry-run` lists
+scripts. winget saves the PATH entries it adds, which only new processes read,
+so before each step homeskillet adds them to the step's PATH: a step can run
+what an earlier step installed in the same run, such as `pwsh` right after the
+`powershell` step. That first run on a new machine is not yet verified here; if
+a step cannot find a program, open a new terminal and run setup again.
+`homeskillet setup . --dry-run` lists
 every step and whether it is done.
 
 The `profile` step's done check, `{documents}/PowerShell/profile.ps1`, names
