@@ -67,18 +67,23 @@ later, from the first setup step.
    Start-Process ms-settings:developers
    ```
 
-4. **homeskillet**: download `homeskillet-windows-amd64.exe` (`-arm64.exe` on
-   Arm) and `SHA256SUMS` from its
-   [Releases](https://github.com/nicholashoule/homeskillet/releases), then:
+4. **homeskillet**, from a folder of your own, such as Downloads. This
+   downloads its latest [release](https://github.com/nicholashoule/homeskillet/releases)
+   and runs `self install` only if the download matches the release's
+   `SHA256SUMS`:
 
    ```powershell
-   (Get-FileHash .\homeskillet-windows-amd64.exe).Hash  # must match SHA256SUMS
-   .\homeskillet-windows-amd64.exe self install
+   $base = 'https://github.com/nicholashoule/homeskillet/releases/latest/download'
+   $exe = 'homeskillet-windows-amd64.exe'   # homeskillet-windows-arm64.exe on Arm
+   curl.exe -fsSLO --proto =https "$base/$exe"
+   curl.exe -fsSLO --proto =https "$base/SHA256SUMS"
+   $sum = (Get-FileHash $exe -Algorithm SHA256).Hash
+   if ((Get-Content SHA256SUMS) -contains "$sum  $exe") { & ".\$exe" self install } else { Write-Error "$exe does not match SHA256SUMS; it was not run" }
    ```
 
-   Open a new terminal. If homeskillet says `~\.local\bin` is not on your
-   Path, add it to your user Path first. Later, `homeskillet update` installs
-   new releases.
+   Then delete the two files and open a new terminal. If homeskillet says
+   `~\.local\bin` is not on your Path, add it to your user Path first. Later,
+   `homeskillet update` installs new releases.
 
 5. **Link and set up**, from the clone:
 
