@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Pre-commit checks on the staged content of each commit, not the working tree:
 #   - scripts/check-secrets.sh: secrets, force-added ignored files, personal details
-#   - bash -n and shellcheck (when installed) on staged Bash files: the repository
-#     tooling, which runs on Linux and macOS
-#   - scripts/check-powershell.sh on staged PowerShell files: syntax (when pwsh is
-#     installed) and ASCII
-# Every check runs, and the commit is blocked if any of them fails. CI always
-# runs ShellCheck and PowerShell's parser.
+#   - bash -n on staged Bash files: the repository tooling
+#   - scripts/check-powershell.sh on staged PowerShell files: ASCII, syntax (when
+#     pwsh is installed), and PSScriptAnalyzer (when it is installed)
+# Every check runs, and the commit is blocked if any of them fails. Commits are
+# made on Windows, so ShellCheck runs only in CI, on Linux; CI also always runs
+# PowerShell's parser and PSScriptAnalyzer.
 # Enable once per clone:  git config core.hooksPath .githooks
 # Skip for one reviewed commit with `git commit --no-verify`; CI still checks it.
 set -euo pipefail
@@ -52,23 +52,19 @@ check_secrets() {
     bash scripts/check-secrets.sh --staged || FAILED+=('secret scan')
 }
 
-# check_bash runs `bash -n`, then shellcheck when it is installed, on each staged
-# Bash file PATH..., from the staged copy so messages name repository paths.
+# check_bash runs `bash -n` on each staged Bash file PATH..., from the staged
+# copy so messages name repository paths.
 check_bash() {
     local path status=0
     for path in "$@"; do
         (cd -- "$STAGED_DIR" && bash -n -- "$path") || status=1
     done
     [[ $status -eq 0 ]] || FAILED+=('bash -n')
-    if ! command -v shellcheck >/dev/null; then
-        printf 'pre-commit: shellcheck is not installed, so it was skipped; CI runs it\n' >&2
-        return 0
-    fi
-    (cd -- "$STAGED_DIR" && shellcheck -- "$@") || FAILED+=('shellcheck')
 }
 
 # check_powershell runs scripts/check-powershell.sh on each staged PowerShell
-# file PATH..., from the staged copy. Without pwsh only the syntax is skipped.
+# file PATH..., from the staged copy. Without pwsh, syntax and linting are
+# skipped; without PSScriptAnalyzer, linting is.
 check_powershell() {
     local checker status=0
     checker="$PWD/scripts/check-powershell.sh"
@@ -76,6 +72,7 @@ check_powershell() {
     case $status in
         0) ;;
         3) printf 'pre-commit: pwsh is not installed, so PowerShell syntax was skipped; CI checks it\n' >&2 ;;
+        4) printf 'pre-commit: PSScriptAnalyzer is not installed, so linting was skipped; CI lints\n' >&2 ;;
         *) FAILED+=('PowerShell') ;;
     esac
 }

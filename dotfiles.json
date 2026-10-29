@@ -2,17 +2,31 @@
   "platforms": ["windows"],
   "setup": [
     {
-      "name": "oh-my-posh",
-      "run": [
-        "winget", "install", "--id", "JanDeDobbeleer.OhMyPosh", "--exact", "--source", "winget",
-        "--accept-source-agreements", "--accept-package-agreements"
-      ],
-      "provides": "oh-my-posh"
+      "name": "profile",
+      "run": ["pwsh", "-NoLogo", "-NoProfile", "-File", "home/.local/share/helpers/pwsh/init-profile.ps1"],
+      "creates": "{documents}/PowerShell/profile.ps1"
     },
     {
-      "name": "meslo-nerd-font",
-      "run": ["oh-my-posh", "font", "install", "Meslo"],
-      "creates": "AppData/Local/Microsoft/Windows/Fonts/MesloLGLNerdFont-Regular.ttf"
+      "name": "local",
+      "run": ["pwsh", "-NoLogo", "-NoProfile", "-File", "home/.local/share/helpers/pwsh/init-local.ps1"],
+      "creates": ".config/powershell/profile.d/local.ps1"
+    },
+    {
+      "name": "scoop-config",
+      "run": ["pwsh", "-NoLogo", "-NoProfile", "-File", "home/.local/share/helpers/pwsh/init-scoop-config.ps1"],
+      "creates": ".config/scoop/config.json"
+    },
+    {
+      "name": "wsl-gitconfig",
+      "run": ["bash", "home/wsl/.local/share/helpers/sh/init-gitconfig.sh"],
+      "platforms": ["linux"],
+      "creates": ".gitconfig"
+    },
+    {
+      "name": "wsl-local",
+      "run": ["bash", "home/wsl/.local/share/helpers/sh/init-local.sh"],
+      "platforms": ["linux"],
+      "creates": ".bashrc.d/local.sh"
     }
   ]
 }

@@ -2,7 +2,26 @@
   "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
   "blocks": [
     {
+      "alignment": "left",
+      "segments": [
+        {
+          "background": "#29315A",
+          "foreground": "#AEA4BF",
+          "leading_diamond": "",
+          "options": {
+            "time_format": "Mon Jan _2 03:04:05 PM MST 2006"
+          },
+          "style": "diamond",
+          "template": " {{ .CurrentDate | date .Format }}",
+          "trailing_diamond": "",
+          "type": "time"
+        }
+      ],
+      "type": "prompt"
+    },
+    {
       "alignment": "right",
+      "overflow": "break",
       "segments": [
         {
           "background": "#29315A",

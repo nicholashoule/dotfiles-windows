@@ -1,0 +1,7 @@
+# Debian and Ubuntu packages for the WSL distribution, one per line, which the
+# wsl-apt-packages setup step (install-apt-packages.sh) installs with apt when
+# missing; apt itself never reads this file. Text after # is ignored. Go comes
+# from go.dev instead, by install-go.sh, since Ubuntu's golang-go lags behind
+# what projects here need.
+# https://manpages.debian.org/apt-get
+make
