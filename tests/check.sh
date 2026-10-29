@@ -150,6 +150,12 @@ foreach ($path in $env:JSON_FILES -split "`n") {
 if ($failed) { exit 1 }
 POWERSHELL
 readonly JSON_CHECK
+# TOOLS_IDS prints the ID of every package the tools.psd1 in CHECK_TOOLS lists.
+TOOLS_IDS=''
+IFS= read -r -d '' TOOLS_IDS <<'POWERSHELL' || true
+(Import-PowerShellDataFile -LiteralPath $env:CHECK_TOOLS).WingetPackages.Id
+POWERSHELL
+readonly TOOLS_IDS
 # WINGET_STANDIN stands in for winget when install-tools.ps1 runs. `export`
 # writes the IDs in CHECK_WINGET_INSTALLED as installed, in the shape of
 # winget's export file. `install` prints a line naming the package after --id,
@@ -965,7 +971,7 @@ check_wsl_home() {
     done < <(find "$WSL_HOME" -type f -print0)
     home=$(new_home)
     cp -R "$WSL_HOME/." "$home/"
-    output=$(env -i HOME="$home" PATH=/usr/bin:/bin bash -c '. "$HOME/.bash_profile"' 2>&1) || status=$?
+    output=$(env -i HOME="$home" PATH=/usr/bin:/bin bash "$home/.bash_profile" 2>&1) || status=$?
     [[ $status -eq 0 && -z $output ]] || fail "home/wsl login shell" "exit status $status: $output"
     pass "home/wsl's bash files parse with LF endings, and its login shell loads silently"
 }
@@ -1042,7 +1048,7 @@ check_install_tools() {
     fi
     home=$(new_home)
     ids=$(CHECK_TOOLS=$TOOLS "$PWSH" -NoLogo -NoProfile -NonInteractive \
-        -Command '(Import-PowerShellDataFile -LiteralPath $env:CHECK_TOOLS).WingetPackages.Id') ||
+        -Command "$TOOLS_IDS") ||
         fail "tools.psd1" "$ids"
     [[ -n $ids ]] || fail "tools.psd1" "it lists no packages"
     run_helper "$home" install-tools.ps1 -DryRun -Path "$TOOLS"
@@ -1066,7 +1072,7 @@ check_install_tools() {
     list=$home/tools.psd1
     {
         printf '@{ WingetPackages = @(\n'
-        while IFS== read -r id _; do
+        while IFS='=' read -r id _; do
             printf "    @{ Id = '%s'; Name = '%s' }\n" "$id" "$id"
         done <<<"$WINGET_STATUS"
         printf ') }\n'
