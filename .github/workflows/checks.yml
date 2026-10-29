@@ -1,8 +1,9 @@
 name: Checks
 
-# homeskillet does not run on Windows yet, so the checks run on Ubuntu, whose
-# GitHub runner images include PowerShell (pwsh) and ShellCheck. ShellCheck lints
-# the Bash tooling only here, since commits are made on Windows.
+# The checks run on Ubuntu, whose GitHub runner images include PowerShell (pwsh)
+# and ShellCheck, with homeskillet's Linux release acting for Windows and for
+# WSL. ShellCheck lints the Bash tooling only here, since commits are made on
+# Windows.
 on:
   push:
     branches: [main]
@@ -37,8 +38,24 @@ jobs:
       - name: PowerShell lint
         run: git ls-files -z '*.ps1' '*.psm1' '*.psd1' | xargs -0 bash scripts/check-powershell.sh
 
+      # homeskillet's Linux release, run only once it matches the SHA-256 its
+      # release's SHA256SUMS lists. Raise the version when homeskillet releases
+      # a new one; the README names the oldest the checks support.
+      - name: Download homeskillet
+        env:
+          HOMESKILLET_VERSION: v0.3.0
+        run: |
+          dir=$(mktemp -d)
+          base="https://github.com/nicholashoule/homeskillet/releases/download/$HOMESKILLET_VERSION"
+          curl -fsSL --proto '=https' -o "$dir/homeskillet-linux-amd64" "$base/homeskillet-linux-amd64"
+          curl -fsSL --proto '=https' -o "$dir/SHA256SUMS" "$base/SHA256SUMS"
+          (cd "$dir" && grep ' homeskillet-linux-amd64$' SHA256SUMS | sha256sum --check --strict)
+          chmod +x "$dir/homeskillet-linux-amd64"
+          "$dir/homeskillet-linux-amd64" version
+          echo "HOMESKILLET=$dir/homeskillet-linux-amd64" >>"$GITHUB_ENV"
+
       - name: Regression checks
-        run: bash tests/check.sh
+        run: bash tests/check.sh "$HOMESKILLET"
 
   secrets:
     runs-on: ubuntu-latest

@@ -3,14 +3,14 @@
 #
 # Usage: bash tests/check.sh [MANAGER]
 #
-# homeskillet does not run on Windows yet, so the manager checks run on Linux or
-# macOS, as CI does on Ubuntu; the rest also run in Git Bash on Windows. When
-# pwsh is installed, they parse every PowerShell file, and lint it when
-# PSScriptAnalyzer is installed, load the profile and its snippets as a machine
-# without its tools would, run the helpers in a temporary home, and parse every
-# JSON file. Passing a built homeskillet binary as MANAGER also links, checks,
-# and unlinks every file under home/ in a temporary home, acting for Windows
-# with --platform windows, and lists the setup steps without running them.
+# They run with Bash on Linux and macOS, as CI does on Ubuntu, and in Git Bash
+# on Windows. When pwsh is installed, they parse every PowerShell file, and lint
+# it when PSScriptAnalyzer is installed, load the profile and its snippets as a
+# machine without its tools would, run the helpers in a temporary home, and
+# parse every JSON file. Passing homeskillet as MANAGER, the build for the
+# system the checks run on, also links, checks, and unlinks every file under
+# home/ in a temporary home, acting for Windows with --platform windows, and
+# lists the setup steps without running them.
 # Exit status: 0 when all checks pass, 1 when a check fails, 2 for usage errors.
 
 # POSIX syntax until bash is confirmed, so `sh tests/check.sh` fails clearly.
@@ -296,6 +296,9 @@ readonly WSL_HELPERS="$WSL_HOME/.local/share/helpers/sh"
 # other file there is a copy of dotfiles-linux's, byte for byte.
 readonly -a WSL_OWN=(.bash_profile .config/apt/packages .local/share/helpers/sh/install-apt-packages.sh)
 readonly TOOLS="$REPO/home/.config/winget/tools.psd1"
+# The oldest homeskillet the README supports: the first release with check,
+# bootstrap.json, inputs, {documents}, and home/wsl.
+readonly MANAGER_MINIMUM=0.2.0
 PWSH=''
 HELPER_OUTPUT=''
 HELPER_STATUS=0
@@ -1103,13 +1106,12 @@ check_manager_platform() {
 # check_manager_check runs the manager's own validation of both manifests and
 # every file, for every platform: `homeskillet check` prints valid<TAB>REPO and
 # exits 0, or one issue<TAB>TEXT line per problem and exits 1. A homeskillet
-# without the command is skipped; any other failure fails.
+# without the command is older than MANAGER_MINIMUM, which the failure names.
 check_manager_check() {
     local output status=0
     output=$("$MANAGER" check "$REPO" 2>&1) || status=$?
     if [[ $status -ne 0 && $output == *'unknown command "check"'* ]]; then
-        skip "homeskillet check" "this homeskillet has no check command"
-        return
+        fail "homeskillet check" "this homeskillet has no check command; the checks need $MANAGER_MINIMUM or later"
     fi
     [[ $status -eq 0 && $output == valid$'\t'* ]] || fail "homeskillet check" "exit status $status: $output"
     pass "homeskillet check finds both manifests and every file valid for every platform"
@@ -1142,7 +1144,7 @@ check_manager_integration() {
             fail "link" "$path does not link to $REPO/home/$path"
     done
     [[ ! -e $home/wsl ]] ||
-        fail "link" "it linked home/wsl into the Windows home; this homeskillet predates home/wsl support"
+        fail "link" "it linked home/wsl into the Windows home; the checks need homeskillet $MANAGER_MINIMUM or later"
     pass "link links every file under home/ but home/wsl, and is idempotent"
 
     manage "$home" status
@@ -1164,9 +1166,9 @@ check_manager_integration() {
     [[ -z $(ls -A "$setup_home") ]] || fail "setup --dry-run" "it changed the test home"
     pass "setup --dry-run lists the steps and changes nothing"
 
-    # Every manager reads dotfiles.json. One that reads bootstrap.json too offers
-    # all of its steps, before dotfiles.json's; an older one offers none of them.
-    # The WSL steps are for Linux, so none of them is offered here.
+    # The manager offers every step of bootstrap.json, then dotfiles.json's; one
+    # older than MANAGER_MINIMUM reads only dotfiles.json and offers none of
+    # bootstrap.json's. The WSL steps are for Linux, so none is offered here.
     while IFS= read -r name; do
         [[ $MANAGER_OUTPUT == *$'\t'"$name"$'\t'* ]] ||
             fail "setup --dry-run" "dotfiles.json's $name step is not listed: $MANAGER_OUTPUT"
@@ -1182,7 +1184,7 @@ check_manager_integration() {
         fi
     done < <(step_names "$REPO/bootstrap.json" windows)
     if [[ $listed -eq 0 ]]; then
-        skip "bootstrap.json's steps" "this homeskillet reads only dotfiles.json"
+        fail "setup --dry-run" "this homeskillet reads only dotfiles.json; the checks need $MANAGER_MINIMUM or later"
     elif [[ $listed -eq $count ]]; then
         first=$(step_names "$REPO/bootstrap.json" windows | head -n 1)
         before_bootstrap=${MANAGER_OUTPUT%%$'\t'"$first"$'\t'*}
@@ -1195,25 +1197,24 @@ check_manager_integration() {
         fail "setup --dry-run" "only $listed of bootstrap.json's $count steps are listed: $MANAGER_OUTPUT"
     fi
 
-    # The profile step is done once the stub exists in Documents: a manager that
-    # resolves {documents} in "creates" maps it to the test home's Documents.
+    # The profile step is done once the stub exists in Documents: the manager
+    # resolves {documents} in "creates" to the test home's Documents.
     [[ $MANAGER_OUTPUT == *$'pending\tprofile\t'* ]] ||
         fail "setup --dry-run, profile" "the profile step is not pending in an empty home: $MANAGER_OUTPUT"
     mkdir -p "$setup_home/${STUB%/*}"
     : >"$setup_home/$STUB"
     manage "$setup_home" setup --dry-run
-    if [[ $MANAGER_OUTPUT == *$'done\tprofile\t'* ]]; then
-        pass "the profile step is done once the stub is in Documents"
-    else
-        skip "the profile step's done check" "this homeskillet does not resolve {documents} in creates"
-    fi
+    [[ $MANAGER_OUTPUT == *$'done\tprofile\t'* ]] ||
+        fail "setup --dry-run, profile" \
+            "the step is not done with the stub in Documents; the checks need homeskillet $MANAGER_MINIMUM or later: $MANAGER_OUTPUT"
+    pass "the profile step is done once the stub is in Documents"
 }
 
 # check_manager_wsl links into an empty home acting for Linux, as `homeskillet
 # wsl link` does inside the distribution: every file under home/wsl lands at
 # the same path in the home, and nothing from the rest of home/. Then it
 # dry-runs setup, which must offer the Linux steps alone, bootstrap.json's
-# first. A homeskillet without home/wsl support is skipped.
+# first.
 check_manager_wsl() {
     local home setup_home path name first before_bootstrap before_dotfiles
     local -a paths=()
@@ -1222,10 +1223,8 @@ check_manager_wsl() {
     done < <(find "$WSL_HOME" -type f -print0)
     home=$(new_home)
     MANAGER_PLATFORM=linux manage "$home" link
-    if [[ ! -L $home/.bashrc ]]; then
-        skip "home/wsl" "this homeskillet does not link home/wsl for Linux"
-        return
-    fi
+    [[ -L $home/.bashrc ]] ||
+        fail "link, Linux" "it did not link home/wsl; the checks need homeskillet $MANAGER_MINIMUM or later"
     for path in "${paths[@]}"; do
         [[ -L $home/$path && $(readlink "$home/$path") == "$WSL_HOME/$path" ]] ||
             fail "link, Linux" "$path does not link to $WSL_HOME/$path"

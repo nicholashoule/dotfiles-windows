@@ -5,11 +5,13 @@ managed by the separate `homeskillet` CLI. This repository holds the
 configuration, its setup steps and helpers, and checks; the manager's Go source
 lives in the `homeskillet` repository.
 
-> **Status:** homeskillet's native Windows support, and its `homeskillet wsl`
-> command, are not in a release yet; a build with them links this repository
-> and runs its setup steps on Windows 11 and in its WSL distribution. The checks
-> still run from Linux or macOS too, and without such a build, installing is
-> manual (see [Install](#install)).
+> **Requires** [homeskillet](https://github.com/nicholashoule/homeskillet)
+> 0.2.0 or later, the first release that runs natively on Windows, reads
+> `bootstrap.json`, and has `homeskillet wsl`; 0.3.0 adds `homeskillet update`.
+> Releases 0.2.0 and 0.3.0 both pass the checks, natively on Windows 11, and
+> 0.3.0 finds this repository linked and its setup steps done there and in its
+> WSL distribution. Without homeskillet, installing is manual (see
+> [Install](#install)).
 
 ## What's Included
 
@@ -53,7 +55,9 @@ On a new machine, in this order:
    winget install --id Git.Git --exact --source winget
    ```
 
-2. **The clone**, in a new PowerShell 7 terminal, kept in a permanent location,
+2. **The clone** of this repository, or of your fork (see
+   [Customize](#customize)), in a new PowerShell 7 terminal, kept in a
+   permanent location under your profile directory and outside OneDrive,
    because the links point into it, with the pre-commit hook turned on:
 
    ```powershell
@@ -69,18 +73,32 @@ On a new machine, in this order:
    pwsh -NoProfile -File home\.local\share\helpers\pwsh\enable-developer-mode.ps1
    ```
 
-4. **homeskillet**, as its `docs/windows.md` describes. It installs into
-   `~\.local\bin`; add that folder to your user Path if homeskillet says it is
-   missing, and open a new terminal.
-5. **This repository**, from the clone: `homeskillet status --repo .` reports
-   each file, `homeskillet link --repo .` links every file under `home/`, and
-   `homeskillet setup --repo .` offers the [setup steps](#setup-steps).
+4. **homeskillet**, from its
+   [Releases](https://github.com/nicholashoule/homeskillet/releases), as its
+   `docs/windows.md` describes: download `homeskillet-windows-amd64.exe`
+   (`-arm64.exe` on Arm) and `SHA256SUMS`, compare the hash, and install it:
+
+   ```powershell
+   (Get-FileHash .\homeskillet-windows-amd64.exe -Algorithm SHA256).Hash  # compare with SHA256SUMS
+   .\homeskillet-windows-amd64.exe self install
+   ```
+
+   It installs into `~\.local\bin`; add that folder to your user Path if
+   homeskillet says it is missing, and open a new terminal. From then on,
+   `homeskillet update` installs each new release, checked against its
+   `SHA256SUMS`, and keeps the version before it, which
+   `homeskillet use previous` runs again.
+5. **This repository**, from the clone: `homeskillet check .` lists any issue
+   in its manifests and files, `homeskillet status .` reports each file,
+   `homeskillet link .` links every file under `home/`, and
+   `homeskillet setup .` offers the [setup steps](#setup-steps). At a
+   terminal, `link` and `status` end by saying how many steps are pending.
 6. **WSL**, optionally: `enable-wsl.ps1`, which is on PATH once the profile
    loads (see [Helpers](#helpers)), then, from the clone,
    `homeskillet wsl install`, `homeskillet wsl link .`, and
    `homeskillet wsl setup .` (see [WSL](#wsl)).
 
-Without a homeskillet that runs on Windows, link or copy the files by hand:
+Without homeskillet, link or copy the files by hand:
 each file under `home/` belongs at the same path under your profile directory
 (`%USERPROFILE%`), and the setup steps in [bootstrap.json](bootstrap.json), then
 [dotfiles.json](dotfiles.json), run as written, from the clone, in PowerShell 7.
@@ -140,25 +158,19 @@ The steps named `wsl-` are for WSL instead, with `"platforms": ["linux"]` of
 their own: `homeskillet setup` on Windows skips them, and
 `homeskillet wsl setup .` offers them in the distribution (see [WSL](#wsl)).
 
-Reading `bootstrap.json` is not in a homeskillet release yet: a homeskillet
-that reads only `dotfiles.json` links the files and offers its steps, but none
-of the tool installs, so run those from `bootstrap.json` by hand.
-
 PowerShell 7 comes first because the helpers run in it, through
 `pwsh -NoProfile -File`, which its default execution policy allows for local
 scripts. winget adds programs to PATH for new processes only, so a first run
 stops at the first step that needs a program installed earlier in the same run:
-open a new terminal and run setup again. `homeskillet setup --dry-run` lists
+open a new terminal and run setup again. `homeskillet setup . --dry-run` lists
 every step and whether it is done.
 
 The `profile` step's done check, `{documents}/PowerShell/profile.ps1`, names
 Documents wherever OneDrive moves it: homeskillet resolves `{documents}`
 through Windows' known folders, and to `Documents` under the home given with
-`--home`. A homeskillet without that support sees a path that never exists and
-offers the step every run, which is safe, since the helper leaves an existing
-profile alone. On Windows 11 with Documents in OneDrive, a native
-`homeskillet setup --dry-run` found the stub there and reported the step done.
-The `go` step is done when any `go` is on PATH,
+`--home`. On Windows 11 with Documents in OneDrive,
+`homeskillet setup . --dry-run` found the stub there and reported the step
+done. The `go` step is done when any `go` is on PATH,
 such as one from Go's own installer; run `install-golang.ps1` yourself to add
 the per-user toolchain anyway.
 
@@ -172,9 +184,8 @@ name the list and its helper as `inputs`: homeskillet records them when the
 step succeeds and counts the step done until one of them changes, so adding a
 package to the list offers the step again. After uninstalling a listed package
 by hand, name the step to run it anyway: `homeskillet setup . winget-tools`.
-`inputs` is not in a homeskillet release yet; a homeskillet that reads
-`bootstrap.json` but predates it refuses the manifest, so run
-`install-tools.ps1` by hand there.
+homeskillet keeps that record in its data directory, so with a new data
+directory the step is offered again.
 
 The font step installs every Meslo face for the current user, without
 elevation; running it on Windows 11 with Oh My Posh 31.9 wrote the file the
@@ -394,7 +405,9 @@ homeskillet wsl status .      # what is linked, and whether the copy is current
 ```
 
 Each acts in WSL's default distribution, or the one `--distribution NAME`
-names. homeskillet copies the clone into the distribution, under
+names. The others run homeskillet's Linux build there, which must be the
+version that runs on Windows, so run `homeskillet wsl install` again after
+`homeskillet update`. homeskillet copies the clone into the distribution, under
 `~/.local/share/homeskillet/mirrors/`, and links from the copy, since WSL shows
 files on a Windows drive as writable by everyone; edit the clone on Windows and
 run `homeskillet wsl link .` again to bring changes across. Ubuntu comes with
@@ -446,6 +459,12 @@ The checks run linking and setup acting for Linux in a temporary home.
 
 ## Customize
 
+- **Your own copy:** fork this repository and clone the fork. Nothing in it is
+  tied to one machine, user name, or path: the helpers find the home and
+  Documents as they run. Change `CODEOWNERS`, the account GitHub asks to review
+  pull requests, to yours; keep `LICENSE`'s copyright notice, as the MIT
+  License asks; and keep what belongs to one machine in `local.ps1`, which is
+  never linked.
 - **This machine:** put settings in `~\.config\powershell\profile.d\local.ps1`.
   It loads after the snippets whose names sort before it, such as
   `00-psreadline.ps1`, so it can replace what they set, and before
@@ -557,8 +576,9 @@ git config core.hooksPath .githooks
 
 ## Checks
 
-homeskillet does not run on Windows yet, so the manager checks run on Linux or
-macOS; the rest also run in Git Bash on Windows. They lint PowerShell with
+The checks run with Bash on Linux and macOS, and in Git Bash on Windows; given
+the homeskillet binary for the system they run on, they also check what it
+links and offers for Windows and for WSL. They lint PowerShell with
 [PSScriptAnalyzer](https://learn.microsoft.com/powershell/utility-modules/psscriptanalyzer/overview)
 when it is installed, so install it once, in PowerShell 7:
 
@@ -567,8 +587,8 @@ Install-PSResource PSScriptAnalyzer -Scope CurrentUser
 ```
 
 ```sh
-bash tests/check.sh                          # PowerShell, profile, helpers, and JSON
-bash tests/check.sh /path/to/homeskillet     # also link, status, unlink, and setup --dry-run
+bash tests/check.sh                               # PowerShell, profile, helpers, and JSON
+bash tests/check.sh "$(command -v homeskillet)"   # also check, link, status, unlink, and setup --dry-run
 bash scripts/check-secrets.sh --all
 ```
 
@@ -619,17 +639,18 @@ binary, it confirms nothing applies on macOS, then acts for Windows with
 temporary home, checks and unlinks them, and lists the setup steps without
 running any, the Windows ones alone. Acting for Linux, it links `home/wsl/`
 alone into another temporary home and lists the `wsl-` steps alone, as
-`homeskillet wsl` does inside the distribution, with no WSL needed. With a
-homeskillet that has `homeskillet check`, it requires that to find both
-manifests and every file valid. With one that reads `bootstrap.json`, it
-requires every step from both manifests, `bootstrap.json`'s first. With one
-that resolves `{documents}`, it also checks that the `profile` step is done
-once the stub is in the temporary home's Documents. A homeskillet from before
-`home/wsl/` links it into the Windows home, which fails the checks.
+`homeskillet wsl` does inside the distribution, with no WSL needed. It
+requires `homeskillet check` to find both manifests and every file valid, every
+step from both manifests, `bootstrap.json`'s first, and the `profile` step to
+be done once the stub is in the temporary home's Documents. A homeskillet older
+than 0.2.0 lacks some of these and fails the checks at the first one.
 
-GitHub Actions runs the checks on Ubuntu on every push and pull request, and
-fails if PSScriptAnalyzer did not lint every PowerShell file. It also runs
-ShellCheck on the Bash tooling; nothing runs ShellCheck on Windows.
+GitHub Actions runs the checks on Ubuntu on every push and pull request, with
+homeskillet's Linux release, checked against its `SHA256SUMS`, and fails if
+PSScriptAnalyzer did not lint every PowerShell file. Raise `HOMESKILLET_VERSION`
+in [checks.yml](.github/workflows/checks.yml) when homeskillet releases a new
+version. It also runs ShellCheck on the Bash tooling; nothing runs ShellCheck
+on Windows.
 
 [.pre-commit-config.yaml](.pre-commit-config.yaml) adds optional checks for
 [pre-commit](https://pre-commit.com), such as YAML and JSON syntax, whitespace,

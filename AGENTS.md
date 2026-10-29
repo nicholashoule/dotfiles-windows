@@ -21,11 +21,14 @@ to change it without breaking its guarantees.
   setting belongs here: the manifests, `tools.psd1`, and helpers that install
   one tool or change one Windows setting. When a helper here would need to
   find an environment or link files itself, ask for it in homeskillet instead.
-- homeskillet's native Windows support is not in a release yet, so nothing here
-  may depend on homeskillet running natively: every setup step's work also runs
-  by hand from the clone, and the checks run from Linux or macOS with
-  `--platform windows`. homeskillet's `docs/windows.md` describes its Windows
-  behavior.
+- The repository supports homeskillet 0.2.0 and later, the first release that
+  runs natively on Windows, with `check`, `bootstrap.json`, `inputs`,
+  `{documents}`, and `home/wsl/`. Use a feature from a later release only in
+  the same change that raises that minimum in the README and `MANAGER_MINIMUM`
+  in `tests/check.sh`, and raise `HOMESKILLET_VERSION` in CI as homeskillet
+  releases. Every setup step's work still runs by hand from the clone, and the
+  checks act for Windows with `--platform windows` from any system.
+  homeskillet's `docs/windows.md` describes its Windows behavior.
 - Everything meant for the user's profile directory (`%USERPROFILE%`) lives under
   `home/`, outside `home/wsl/`, at the path it takes there, and homeskillet
   links it file by file; that includes the package list,
@@ -55,9 +58,12 @@ to change it without breaking its guarantees.
   once with a setup step and a helper that leaves an existing file alone unless
   asked (`-Force`), and then renames it to a backup first, as the `init-*.ps1`
   helpers do.
-- The repository is public. Commit nothing machine-specific: no user names,
-  absolute paths, email addresses, hostnames, tokens, or values copied from
-  another project. Use placeholders such as `/path/to/homeskillet` and `$HOME`.
+- The repository is public, and others fork it to use as their own. Commit
+  nothing machine-specific: no user names, absolute paths, email addresses,
+  hostnames, tokens, or values copied from another project; the owner's public
+  name and GitHub account, in `CODEOWNERS`, `LICENSE`, and `# Author:` lines,
+  are the exception. Use placeholders such as `/path/to/homeskillet`, `OWNER`, and
+  `$HOME`, and find the home and Documents at run time.
   Turn on the pre-commit hook in every clone (`git config core.hooksPath
   .githooks`); it and CI enforce part of this rule.
 
