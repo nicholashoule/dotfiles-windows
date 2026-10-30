@@ -6,8 +6,9 @@ configuration, its setup steps and helpers, and checks; the manager's Go source
 lives in the `homeskillet` repository.
 
 > **Requires** [homeskillet](https://github.com/nicholashoule/homeskillet)
-> 0.2.0 or later; 0.3.0 adds `homeskillet update`. Both pass the checks on
-> Windows 11.
+> 0.2.0 or later; 0.3.0 adds `homeskillet update`, and 0.4.0
+> `homeskillet prepare`, which the install steps run. Each passes the checks
+> on Windows 11.
 
 ## What's Included
 
@@ -40,16 +41,25 @@ lives in the `homeskillet` repository.
 
 ## Install
 
-On a new machine, in Windows PowerShell, in this order. PowerShell 7 comes
-later, from the first setup step.
+On a new machine, in Windows PowerShell, in this order:
 
-1. **Git**, to clone this repository:
+1. **homeskillet**, which also gets the machine ready. From a folder of your
+   own, such as Downloads, paste the commands under
+   [Installing](https://github.com/nicholashoule/homeskillet/blob/main/docs/windows.md#installing)
+   in homeskillet's Windows guide. They download its latest release and, only
+   if it matches the release's `SHA256SUMS`, run its `prepare`, then its
+   `install`. `prepare` offers what is missing, each fix shown and run only
+   once you answer `y`: Settings, for you to turn on Developer Mode, which
+   links need; winget, when it is missing; and Git and PowerShell 7, through
+   winget. `install` runs once `prepare` reports `ready`. On Windows 11 with
+   all of these in place, the commands reported `ready` and changed nothing;
+   the offers on a new machine are not yet verified here.
 
-   ```powershell
-   winget install --id Git.Git --exact --source winget
-   ```
+   Then delete the two downloaded files and open a new terminal. If
+   homeskillet says `~\.local\bin` is not on your Path, add it to your user
+   Path first. Later, `homeskillet update` installs new releases.
 
-2. **The clone**, in a new terminal. Use your fork's URL if you have one (see
+2. **The clone**. Use your fork's URL if you have one (see
    [Customize](#customize)), and keep the clone under your profile directory
    and outside OneDrive, since the links point into it. The last line turns on
    the pre-commit hook, which keeps secrets out of your commits:
@@ -60,32 +70,7 @@ later, from the first setup step.
    git config core.hooksPath .githooks
    ```
 
-3. **Developer Mode**, so homeskillet can create links without administrator
-   rights. Turn it on in the Settings page this opens:
-
-   ```powershell
-   Start-Process ms-settings:developers
-   ```
-
-4. **homeskillet**, from a folder of your own, such as Downloads. This
-   downloads its latest [release](https://github.com/nicholashoule/homeskillet/releases)
-   and runs `self install` only if the download matches the release's
-   `SHA256SUMS`:
-
-   ```powershell
-   $base = 'https://github.com/nicholashoule/homeskillet/releases/latest/download'
-   $exe = 'homeskillet-windows-amd64.exe'   # homeskillet-windows-arm64.exe on Arm
-   curl.exe -fsSLO --proto =https "$base/$exe"
-   curl.exe -fsSLO --proto =https "$base/SHA256SUMS"
-   $sum = (Get-FileHash $exe -Algorithm SHA256).Hash
-   if ((Get-Content SHA256SUMS) -contains "$sum  $exe") { & ".\$exe" self install } else { Write-Error "$exe does not match SHA256SUMS; it was not run" }
-   ```
-
-   Then delete the two files and open a new terminal. If homeskillet says
-   `~\.local\bin` is not on your Path, add it to your user Path first. Later,
-   `homeskillet update` installs new releases.
-
-5. **Link and set up**, from the clone:
+3. **Link and set up**, from the clone:
 
    ```powershell
    homeskillet check .   # report any problem in the manifests or files
@@ -93,11 +78,12 @@ later, from the first setup step.
    homeskillet setup .   # review the setup steps and run the ones you approve
    ```
 
-   Setup installs PowerShell 7 first, then the tools, font, and toolchains,
-   and creates the profile stub (see [Setup Steps](#setup-steps)). Then open a
-   new PowerShell 7 terminal, which loads the profile.
+   Setup installs PowerShell 7 first, unless `prepare` did, then the tools,
+   font, and toolchains, and creates the profile stub (see
+   [Setup Steps](#setup-steps)). Then open a new PowerShell 7 terminal, which
+   loads the profile.
 
-6. **WSL**, optionally, in PowerShell 7, from the clone (see [WSL](#wsl)):
+4. **WSL**, optionally, in PowerShell 7, from the clone (see [WSL](#wsl)):
 
    ```powershell
    enable-wsl.ps1             # turn on WSL and install Ubuntu; restart if it asks
@@ -107,10 +93,13 @@ later, from the first setup step.
    homeskillet wsl setup .    # review the wsl- steps and run the ones you approve
    ```
 
-Without homeskillet, link or copy the files by hand:
-each file under `home/` belongs at the same path under your profile directory
-(`%USERPROFILE%`), and the setup steps in [bootstrap.json](bootstrap.json), then
-[dotfiles.json](dotfiles.json), run as written, from the clone, in PowerShell 7.
+Without homeskillet, install Git with
+`winget install --id Git.Git --exact --source winget`, clone as above, and link
+or copy the files by hand: each file under `home/` belongs at the same path under
+your profile directory (`%USERPROFILE%`), and links need Developer Mode
+(Settings, System, For developers). The setup steps in
+[bootstrap.json](bootstrap.json), then [dotfiles.json](dotfiles.json), run as
+written, from the clone, in PowerShell 7.
 
 ### Documents and OneDrive
 
@@ -525,8 +514,9 @@ The checks run linking and setup acting for Linux in a temporary home.
   `Measure-Command { . $PROFILE.CurrentUserAllHosts }`, then move snippets out
   of `profile.d` one at a time to find the slow one. The prompt runs
   `oh-my-posh init` once per interactive session.
-- **homeskillet cannot create a link, or install itself:** turn on Developer
-  Mode with `enable-developer-mode.ps1`, or in Settings under For developers.
+- **homeskillet cannot create a link, or install itself:** Developer Mode is
+  off. Turn it on in Settings under For developers, which `homeskillet prepare`
+  opens for you, or with `enable-developer-mode.ps1`.
 - **`homeskillet` is not found:** it is in `~\.local\bin`. The profile adds that
   folder in PowerShell; for other programs, add it to your user Path in
   Settings (search for environment variables) and open a new terminal.

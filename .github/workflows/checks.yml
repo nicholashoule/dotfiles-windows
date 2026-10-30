@@ -43,7 +43,7 @@ jobs:
       # a new one; the README names the oldest the checks support.
       - name: Download homeskillet
         env:
-          HOMESKILLET_VERSION: v0.3.0
+          HOMESKILLET_VERSION: v0.4.0
         run: |
           dir=$(mktemp -d)
           base="https://github.com/nicholashoule/homeskillet/releases/download/$HOMESKILLET_VERSION"
